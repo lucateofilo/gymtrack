@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>GymTrack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <header class="topbar">
+    <h1>GymTrack</h1>
+    <div class="period-filter">
+      <select id="periodType">
+        <option value="day">Giorno</option>
+        <option value="week" selected>Settimana</option>
+        <option value="month">Mese</option>
+        <option value="year">Anno</option>
+      </select>
+      <div class="period-nav">
+        <button id="periodPrev" aria-label="Periodo precedente">&#8249;</button>
+        <span id="periodLabel"></span>
+        <button id="periodNext" aria-label="Periodo successivo">&#8250;</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-home" class="view active">
+      <div class="totals-row">
+        <div class="total-card">
+          <span class="label">Allenamenti</span>
+          <span class="value" id="totalWorkouts">0</span>
+        </div>
+        <div class="total-card">
+          <span class="label">Serie</span>
+          <span class="value" id="totalSets">0</span>
+        </div>
+        <div class="total-card">
+          <span class="label">Volume</span>
+          <span class="value" id="totalVolume">0 kg</span>
+        </div>
+      </div>
+      <p id="streakChip" class="period-average"></p>
+
+      <ul id="workoutsList" class="movements-list"></ul>
+      <p id="emptyState" class="empty-state" hidden>Nessun allenamento in questo periodo.<br>Tocca + per iniziarne uno.</p>
+    </section>
+
+    <section id="view-stats" class="view">
+      <div class="chart-card">
+        <div class="totals-header">
+          <h2>Progressione</h2>
+          <select id="progressionExerciseSelect" class="filter-select"></select>
+        </div>
+        <svg id="progressionSvg" class="progression-chart" preserveAspectRatio="none"></svg>
+        <p id="progressionEmpty" class="empty-state" hidden>Nessuna serie registrata per questo esercizio.</p>
+        <p id="progressionRecord" class="period-average" hidden></p>
+      </div>
+
+      <div class="chart-card">
+        <h2>Andamento allenamenti</h2>
+        <div id="trendChart" class="trend-chart"></div>
+      </div>
+
+      <div class="chart-card">
+        <h2>Volume per gruppo muscolare</h2>
+        <ul id="muscleVolumeList" class="category-totals"></ul>
+        <p id="muscleVolumeEmpty" class="empty-state" hidden>Nessun dato in questo periodo.</p>
+      </div>
+
+      <div class="chart-card">
+        <h2>Costanza — questo mese</h2>
+        <div id="streakCalendar" class="streak-calendar"></div>
+      </div>
+    </section>
+
+    <section id="view-manage" class="view">
+      <div class="chart-card">
+        <div class="totals-header">
+          <h2>Esercizi</h2>
+          <button type="button" id="addExerciseBtn" class="icon-btn" aria-label="Nuovo esercizio">+</button>
+        </div>
+        <ul id="exerciseManager" class="category-manager"></ul>
+        <p id="exerciseManagerEmpty" class="empty-state" hidden>Nessun esercizio creato.</p>
+      </div>
+
+      <div class="chart-card">
+        <h2>Esporta dati</h2>
+        <p class="export-hint">Scarica tutte le serie in un file CSV, apribile con Excel o Fogli Google.</p>
+        <button type="button" id="exportCsvBtn" class="btn primary">Esporta CSV</button>
+      </div>
+
+      <div class="chart-card">
+        <h2>Backup dati</h2>
+        <p class="export-hint">Salva o ripristina esercizi, allenamenti e serie in un file.</p>
+        <div class="backup-actions">
+          <button type="button" id="exportBackupBtn" class="btn primary">Esporta backup</button>
+          <label for="importBackupInput" class="btn secondary">Ripristina backup</label>
+        </div>
+        <input type="file" id="importBackupInput" accept="application/json,.json" hidden>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="home">
+      <span class="icon">&#8962;</span><span>Home</span>
+    </button>
+    <button class="nav-btn" data-view="stats">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="20" x2="4" y2="12"></line><line x1="12" y1="20" x2="12" y2="6"></line><line x1="20" y1="20" x2="20" y2="15"></line></svg></span><span>Statistiche</span>
+    </button>
+    <button class="nav-btn" data-view="manage">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span>Gestione</span>
+    </button>
+  </nav>
+
+  <button id="fab" class="fab" aria-label="Nuovo allenamento">+</button>
+</div>
+
+<div id="workoutModal" class="modal" hidden>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="workoutModalTitle">Nuovo allenamento</h2>
+      <button id="closeWorkoutModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    </div>
+
+    <div class="modal-form">
+      <label>
+        Data
+        <input type="date" id="workoutDate">
+      </label>
+      <label>
+        Nota (opzionale)
+        <input type="text" id="workoutNote" maxlength="60" placeholder="Es. Push day">
+      </label>
+
+      <div class="rest-timer">
+        <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
+        <div class="rest-timer-actions">
+          <button type="button" class="btn secondary rest-preset" data-seconds="60">60s</button>
+          <button type="button" class="btn secondary rest-preset" data-seconds="90">90s</button>
+          <button type="button" class="btn secondary rest-preset" data-seconds="120">120s</button>
+          <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
+        </div>
+      </div>
+
+      <h3>Serie</h3>
+      <ul id="setsList" class="movements-list sets-list"></ul>
+      <p id="setsEmpty" class="empty-state" hidden>Nessuna serie aggiunta.</p>
+
+      <div class="add-set-form">
+        <label>
+          Esercizio
+          <select id="setExerciseSelect">
+            <option value="__new__">+ Nuovo esercizio</option>
+          </select>
+        </label>
+        <div id="newExerciseFields" class="new-category-fields" hidden>
+          <label>
+            Nome
+            <input type="text" id="newExerciseName" maxlength="30" placeholder="Es. Panca piana">
+          </label>
+          <label>
+            Gruppo
+            <select id="newExerciseGroup"></select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label>
+            Peso (kg)
+            <input type="number" id="setWeight" inputmode="decimal" step="0.5" min="0" placeholder="0">
+          </label>
+          <label>
+            Reps
+            <input type="number" id="setReps" inputmode="numeric" step="1" min="0" placeholder="0">
+          </label>
+          <label>
+            RIR
+            <input type="number" id="setRir" inputmode="numeric" step="1" min="0" max="10" placeholder="-">
+          </label>
+        </div>
+        <button type="button" id="addSetBtn" class="btn primary">Aggiungi serie</button>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteWorkoutBtn" class="btn danger" hidden>Elimina allenamento</button>
+        <button type="button" id="doneWorkoutBtn" class="btn primary">Fatto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="exerciseModal" class="modal" hidden>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="exerciseModalTitle">Modifica esercizio</h2>
+      <button id="closeExerciseModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    </div>
+    <form id="exerciseForm" class="modal-form">
+      <input type="hidden" id="exerciseId">
+      <label>
+        Nome
+        <input type="text" id="exerciseName" maxlength="30" required>
+      </label>
+      <label>
+        Gruppo muscolare
+        <select id="exerciseGroup"></select>
+      </label>
+      <label>
+        Unità
+        <select id="exerciseUnit">
+          <option value="kg">Kg</option>
+          <option value="bodyweight">Corpo libero</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button type="submit" class="btn primary">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
