@@ -6,6 +6,7 @@ const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M17 4H7v6a5 5 0 0 0 10 0V4Z"></path><path d="M5 4H3v2a4 4 0 0 0 4 4"></path><path d="M19 4h2v2a4 4 0 0 1-4 4"></path></svg>';
 const ICON_FLAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
 const PR_BADGE_HTML = `<span class="pr-badge" title="Record personale">${ICON_TROPHY}</span>`;
 
 let periodType = "week";
@@ -23,6 +24,10 @@ let editingRoutineId = null;
 let sessionExerciseIds = []; // ordered exerciseIds shown as blocks in the current workout modal session
 let pendingRowsByExercise = new Map(); // exerciseId -> [{weight, reps, rir}] draft rows not yet logged
 let activeRestExerciseId = null; // exercise the rest timer duration/estimate currently follows
+let editingBodyLogId = null;
+let editingBodyLogHasPhoto = false;
+let pendingBodyLogPhotoFile = null;
+let removeBodyLogPhotoFlag = false;
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -233,6 +238,7 @@ function renderAll() {
   renderWorkoutsList(workouts);
   renderExerciseManager();
   renderRoutineGroupManager();
+  renderBodyView();
   renderStatsView();
 }
 
@@ -749,6 +755,157 @@ function clearSetStopwatch(record, exerciseId) {
   clearInterval(setStopwatchInterval);
   setStopwatchInterval = null;
   document.getElementById("setStopwatch").hidden = true;
+}
+
+// --- Corpo (peso, misurazioni, foto progresso) ---
+function numOrNull(v) {
+  return v === "" || v == null ? null : Number(v);
+}
+
+function readBodyMeasurements() {
+  return {
+    vita: numOrNull(document.getElementById("bodyLogVita").value),
+    petto: numOrNull(document.getElementById("bodyLogPetto").value),
+    braccia: numOrNull(document.getElementById("bodyLogBraccia").value),
+    cosce: numOrNull(document.getElementById("bodyLogCosce").value),
+    fianchi: numOrNull(document.getElementById("bodyLogFianchi").value),
+  };
+}
+
+const BODY_MEASUREMENT_LABELS = { vita: "Vita", petto: "Petto", braccia: "Braccia", cosce: "Cosce", fianchi: "Fianchi" };
+
+function renderBodyView() {
+  const logs = [...Store.getBodyLogs()]
+    .filter((l) => l.weight != null)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  renderBodyWeightChart(logs.map((l) => ({ date: l.date, value: l.weight })));
+  renderBodyLogList();
+}
+
+function renderBodyLogList() {
+  const list = document.getElementById("bodyLogList");
+  const emptyState = document.getElementById("bodyLogListEmpty");
+  const logs = [...Store.getBodyLogs()].sort((a, b) => (a.date < b.date ? 1 : -1));
+  list.innerHTML = "";
+
+  if (logs.length === 0) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+
+  for (const log of logs) {
+    const dateLabel = new Date(log.date + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
+    const measureParts = Object.entries(log.measurements || {})
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => `${BODY_MEASUREMENT_LABELS[k]} ${v}cm`);
+
+    const li = document.createElement("li");
+    li.className = "movement-item";
+    li.innerHTML = `
+      <div class="info">
+        <div class="cat-name">${log.weight != null ? log.weight + " kg" : "Voce"}${log.hasPhoto ? `<span class="photo-badge">${ICON_CAMERA}</span>` : ""}</div>
+        <div class="note">${measureParts.join(" · ") || "—"}</div>
+      </div>
+      <div class="meta">
+        <span class="date">${dateLabel}</span>
+      </div>
+    `;
+    li.addEventListener("click", () => openBodyLogModal("edit", log));
+    list.appendChild(li);
+  }
+}
+
+function showBodyLogPhotoPreview(url) {
+  document.getElementById("bodyLogPhotoPreviewImg").src = url;
+  document.getElementById("bodyLogPhotoPreview").hidden = false;
+}
+
+function hideBodyLogPhotoPreview() {
+  document.getElementById("bodyLogPhotoPreview").hidden = true;
+  document.getElementById("bodyLogPhotoPreviewImg").src = "";
+}
+
+function openBodyLogModal(mode, log) {
+  document.getElementById("bodyLogId").value = "";
+  document.getElementById("bodyLogDate").value = toISODate(new Date());
+  document.getElementById("bodyLogWeight").value = "";
+  document.getElementById("bodyLogVita").value = "";
+  document.getElementById("bodyLogPetto").value = "";
+  document.getElementById("bodyLogBraccia").value = "";
+  document.getElementById("bodyLogCosce").value = "";
+  document.getElementById("bodyLogFianchi").value = "";
+  pendingBodyLogPhotoFile = null;
+  removeBodyLogPhotoFlag = false;
+  hideBodyLogPhotoPreview();
+
+  if (mode === "edit") {
+    editingBodyLogId = log.id;
+    editingBodyLogHasPhoto = log.hasPhoto;
+    document.getElementById("bodyLogModalTitle").textContent = "Modifica voce";
+    document.getElementById("bodyLogId").value = log.id;
+    document.getElementById("bodyLogDate").value = log.date;
+    document.getElementById("bodyLogWeight").value = log.weight != null ? log.weight : "";
+    const m = log.measurements || {};
+    document.getElementById("bodyLogVita").value = m.vita != null ? m.vita : "";
+    document.getElementById("bodyLogPetto").value = m.petto != null ? m.petto : "";
+    document.getElementById("bodyLogBraccia").value = m.braccia != null ? m.braccia : "";
+    document.getElementById("bodyLogCosce").value = m.cosce != null ? m.cosce : "";
+    document.getElementById("bodyLogFianchi").value = m.fianchi != null ? m.fianchi : "";
+    document.getElementById("deleteBodyLogBtn").hidden = false;
+    if (log.hasPhoto) {
+      Photos.get(log.id).then((blob) => {
+        if (blob) showBodyLogPhotoPreview(URL.createObjectURL(blob));
+      });
+    }
+  } else {
+    editingBodyLogId = null;
+    editingBodyLogHasPhoto = false;
+    document.getElementById("bodyLogModalTitle").textContent = "Nuova voce";
+    document.getElementById("deleteBodyLogBtn").hidden = true;
+  }
+
+  document.getElementById("bodyLogModal").hidden = false;
+}
+
+function closeBodyLogModal() {
+  document.getElementById("bodyLogModal").hidden = true;
+}
+
+async function handleSaveBodyLog() {
+  const date = document.getElementById("bodyLogDate").value || toISODate(new Date());
+  const weight = numOrNull(document.getElementById("bodyLogWeight").value);
+  const measurements = readBodyMeasurements();
+  const hasPhoto = pendingBodyLogPhotoFile ? true : removeBodyLogPhotoFlag ? false : editingBodyLogHasPhoto;
+
+  let log;
+  if (editingBodyLogId) {
+    log = Store.updateBodyLog(editingBodyLogId, { date, weight, measurements, hasPhoto });
+  } else {
+    log = Store.addBodyLog({ date, weight, measurements, hasPhoto });
+  }
+
+  if (pendingBodyLogPhotoFile) {
+    try {
+      await Photos.save(log.id, pendingBodyLogPhotoFile);
+    } catch {
+      Store.updateBodyLog(log.id, { hasPhoto: false });
+      alert("Voce salvata, ma il salvataggio della foto è fallito.");
+    }
+  } else if (removeBodyLogPhotoFlag) {
+    Photos.delete(log.id).catch(() => {});
+  }
+
+  closeBodyLogModal();
+  renderAll();
+}
+
+function handleDeleteBodyLog() {
+  if (!editingBodyLogId) return;
+  Photos.delete(editingBodyLogId).catch(() => {});
+  Store.deleteBodyLog(editingBodyLogId);
+  closeBodyLogModal();
+  renderAll();
 }
 
 function renderExerciseManager() {
@@ -1348,6 +1505,26 @@ document.addEventListener("DOMContentLoaded", () => {
     statsExerciseId = e.target.value;
     renderProgressionForExercise(statsExerciseId);
   });
+
+  document.getElementById("addBodyLogBtn").addEventListener("click", () => openBodyLogModal("add"));
+  document.getElementById("closeBodyLogModal").addEventListener("click", closeBodyLogModal);
+  document.getElementById("bodyLogModal").addEventListener("click", (e) => {
+    if (e.target.id === "bodyLogModal") closeBodyLogModal();
+  });
+  document.getElementById("bodyLogPhotoInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    pendingBodyLogPhotoFile = file;
+    removeBodyLogPhotoFlag = false;
+    showBodyLogPhotoPreview(URL.createObjectURL(file));
+  });
+  document.getElementById("removeBodyLogPhotoBtn").addEventListener("click", () => {
+    pendingBodyLogPhotoFile = null;
+    removeBodyLogPhotoFlag = true;
+    hideBodyLogPhotoPreview();
+  });
+  document.getElementById("saveBodyLogBtn").addEventListener("click", handleSaveBodyLog);
+  document.getElementById("deleteBodyLogBtn").addEventListener("click", handleDeleteBodyLog);
 
   document.getElementById("exportCsvBtn").addEventListener("click", exportSetsCSV);
   document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);

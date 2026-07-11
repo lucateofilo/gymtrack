@@ -91,6 +91,24 @@
       </div>
     </section>
 
+    <section id="view-body" class="view">
+      <div class="chart-card">
+        <h2>Peso corporeo</h2>
+        <svg id="bodyWeightSvg" class="progression-chart" preserveAspectRatio="none"></svg>
+        <p id="bodyWeightEmpty" class="empty-state" hidden>Nessuna voce registrata.</p>
+        <p id="bodyWeightLatest" class="period-average" hidden></p>
+      </div>
+
+      <div class="chart-card">
+        <div class="totals-header">
+          <h2>Voci</h2>
+          <button type="button" id="addBodyLogBtn" class="icon-btn" aria-label="Nuova voce">+</button>
+        </div>
+        <ul id="bodyLogList" class="movements-list"></ul>
+        <p id="bodyLogListEmpty" class="empty-state" hidden>Nessuna voce registrata.<br>Tocca + per aggiungerne una.</p>
+      </div>
+    </section>
+
     <section id="view-manage" class="view">
       <div class="chart-card">
         <div class="totals-header">
@@ -117,7 +135,7 @@
 
       <div class="chart-card">
         <h2>Backup dati</h2>
-        <p class="export-hint">Salva o ripristina esercizi, allenamenti e serie in un file.</p>
+        <p class="export-hint">Salva o ripristina esercizi, allenamenti, serie, schede e voci "Corpo" in un file. Le foto (progresso corpo) non sono incluse nel backup.</p>
         <div class="backup-actions">
           <button type="button" id="exportBackupBtn" class="btn primary">Esporta backup</button>
           <label for="importBackupInput" class="btn secondary">Ripristina backup</label>
@@ -133,6 +151,9 @@
     </button>
     <button class="nav-btn" data-view="stats">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="20" x2="4" y2="12"></line><line x1="12" y1="20" x2="12" y2="6"></line><line x1="20" y1="20" x2="20" y2="15"></line></svg></span><span>Statistiche</span>
+    </button>
+    <button class="nav-btn" data-view="body">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg></span><span>Corpo</span>
     </button>
     <button class="nav-btn" data-view="manage">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span>Gestione</span>
@@ -335,7 +356,67 @@
   </div>
 </div>
 
+<div id="bodyLogModal" class="modal" hidden>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="bodyLogModalTitle">Nuova voce</h2>
+      <button id="closeBodyLogModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    </div>
+    <div class="modal-form">
+      <input type="hidden" id="bodyLogId">
+      <label>
+        Data
+        <input type="date" id="bodyLogDate">
+      </label>
+      <label>
+        Peso (kg)
+        <input type="number" id="bodyLogWeight" inputmode="decimal" step="0.1" min="0" placeholder="Es. 78.5">
+      </label>
+      <div class="field-row">
+        <label>
+          Vita (cm)
+          <input type="number" id="bodyLogVita" inputmode="decimal" step="0.5" min="0" placeholder="-">
+        </label>
+        <label>
+          Petto (cm)
+          <input type="number" id="bodyLogPetto" inputmode="decimal" step="0.5" min="0" placeholder="-">
+        </label>
+      </div>
+      <div class="field-row">
+        <label>
+          Braccia (cm)
+          <input type="number" id="bodyLogBraccia" inputmode="decimal" step="0.5" min="0" placeholder="-">
+        </label>
+        <label>
+          Cosce (cm)
+          <input type="number" id="bodyLogCosce" inputmode="decimal" step="0.5" min="0" placeholder="-">
+        </label>
+      </div>
+      <label>
+        Fianchi (cm)
+        <input type="number" id="bodyLogFianchi" inputmode="decimal" step="0.5" min="0" placeholder="-">
+      </label>
+
+      <div class="photo-field">
+        <span class="photo-label">Foto (opzionale)</span>
+        <div id="bodyLogPhotoPreview" class="photo-preview" hidden>
+          <img id="bodyLogPhotoPreviewImg" alt="Anteprima foto">
+          <button type="button" id="removeBodyLogPhotoBtn" class="icon-btn" aria-label="Rimuovi foto">&#10005;</button>
+        </div>
+        <label class="photo-upload-label" for="bodyLogPhotoInput">+ Aggiungi foto</label>
+        <input type="file" id="bodyLogPhotoInput" accept="image/*" capture="environment" hidden>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteBodyLogBtn" class="btn danger" hidden>Elimina</button>
+        <button type="button" id="saveBodyLogBtn" class="btn primary">Salva</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/storage.js"></script>
+<script src="assets/js/photos.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

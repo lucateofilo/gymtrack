@@ -1,8 +1,9 @@
 const STORAGE_KEY = "gymtrack_data";
 const MUSCLE_GROUPS = ["Petto", "Schiena", "Gambe", "Spalle", "Braccia", "Core", "Cardio"];
+const BODY_MEASUREMENTS = ["vita", "petto", "braccia", "cosce", "fianchi"];
 
 function emptyData() {
-  return { exercises: [], workouts: [], sets: [], routineGroups: [], routines: [] };
+  return { exercises: [], workouts: [], sets: [], routineGroups: [], routines: [], bodyLogs: [] };
 }
 
 function loadData() {
@@ -15,6 +16,7 @@ function loadData() {
     if (!Array.isArray(data.sets)) data.sets = [];
     if (!Array.isArray(data.routineGroups)) data.routineGroups = [];
     if (!Array.isArray(data.routines)) data.routines = [];
+    if (!Array.isArray(data.bodyLogs)) data.bodyLogs = [];
     for (const r of data.routines) {
       if (!Array.isArray(r.items)) {
         r.items = Array.isArray(r.exerciseIds)
@@ -202,6 +204,35 @@ const Store = {
     saveData(data);
   },
 
+  getBodyLogs() {
+    return loadData().bodyLogs;
+  },
+
+  getBodyLogById(id) {
+    return loadData().bodyLogs.find((b) => b.id === id) || null;
+  },
+
+  addBodyLog({ date, weight = null, measurements = {}, hasPhoto = false }) {
+    const data = loadData();
+    const log = { id: genId(), date, weight, measurements, hasPhoto };
+    data.bodyLogs.push(log);
+    saveData(data);
+    return log;
+  },
+
+  updateBodyLog(id, changes) {
+    const data = loadData();
+    const log = updateEntity(data.bodyLogs, id, changes);
+    if (log) saveData(data);
+    return log;
+  },
+
+  deleteBodyLog(id) {
+    const data = loadData();
+    data.bodyLogs = data.bodyLogs.filter((b) => b.id !== id);
+    saveData(data);
+  },
+
   exportAll() {
     return loadData();
   },
@@ -214,6 +245,7 @@ const Store = {
       sets: Array.isArray(data.sets) ? data.sets : [],
       routineGroups: Array.isArray(data.routineGroups) ? data.routineGroups : [],
       routines: Array.isArray(data.routines) ? data.routines : [],
+      bodyLogs: Array.isArray(data.bodyLogs) ? data.bodyLogs : [],
     });
     return true;
   },

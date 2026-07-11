@@ -944,6 +944,64 @@ button:disabled {
   flex: 1;
 }
 
+.photo-field {
+  margin-bottom: 14px;
+}
+
+.photo-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.photo-preview {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 8px;
+}
+
+.photo-preview img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.photo-preview .icon-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+}
+
+.photo-upload-label {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photo-badge {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+
+.photo-badge svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
 .modal-actions {
   display: flex;
   flex-wrap: wrap;

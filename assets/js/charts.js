@@ -87,6 +87,42 @@ function renderProgressionChart(points) {
   recordLabel.textContent = `Record: ${formatKg(bestEver)} (1RM stimato)`;
 }
 
+function renderBodyWeightChart(points) {
+  const svg = document.getElementById("bodyWeightSvg");
+  const emptyState = document.getElementById("bodyWeightEmpty");
+  const latestLabel = document.getElementById("bodyWeightLatest");
+
+  if (points.length === 0) {
+    svg.hidden = true;
+    latestLabel.hidden = true;
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+  svg.hidden = false;
+  latestLabel.hidden = false;
+
+  const W = 300, H = 120, PAD = 10;
+  const maxY = Math.max(...points.map((p) => p.value));
+  const minY = Math.min(...points.map((p) => p.value));
+  const rangeY = maxY - minY || 1;
+
+  const coords = points.map((p, i) => {
+    const x = points.length === 1 ? W / 2 : PAD + (i / (points.length - 1)) * (W - PAD * 2);
+    const y = H - PAD - ((p.value - minY) / rangeY) * (H - PAD * 2);
+    return { x, y };
+  });
+
+  const linePoints = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const dots = coords.map((c) => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" class="dot-point"></circle>`).join("");
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = `<polyline points="${linePoints}" class="progression-line"></polyline>${dots}`;
+
+  const latest = points[points.length - 1].value;
+  latestLabel.textContent = `Ultimo: ${latest.toLocaleString("it-IT", { maximumFractionDigits: 1 })} kg`;
+}
+
 function renderStreakCalendar(year, monthIndex, workoutDates) {
   const container = document.getElementById("streakCalendar");
   container.innerHTML = "";

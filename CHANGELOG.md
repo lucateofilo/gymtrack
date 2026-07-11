@@ -3,6 +3,14 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (tab Corpo: peso, misurazioni, foto)
+
+### Aggiunto
+- **Quarta tab "Corpo"**: nuova collezione `bodyLogs` (peso, misurazioni vita/petto/braccia/cosce/fianchi, foto opzionale) con grafico peso nel tempo e lista voci.
+- **Foto progresso**: salvate in IndexedDB (`assets/js/photos.js`, stesso wrapper nativo di Spicciolo per gli scontrini, store separato `gymtrack_photos`/`body`) per non appesantire il JSON in `localStorage`. Non incluse nel backup (come le foto scontrino di Spicciolo) — aggiornato il testo in Gestione per dirlo esplicitamente.
+- Backup/ripristino estesi automaticamente a `bodyLogs`.
+- Bump `CACHE_NAME` a `gymtrack-v7`, aggiunto `assets/js/photos.js` all'app shell cacheata offline.
+
 ## 2026-07-11 — Feature (nota esercizio, duplica scheda, calcolatore dischi)
 
 ### Aggiunto

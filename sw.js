@@ -1,10 +1,11 @@
-const CACHE_NAME = "gymtrack-v6";
+const CACHE_NAME = "gymtrack-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
   "./assets/css/style.css",
   "./assets/js/storage.js",
+  "./assets/js/photos.js",
   "./assets/js/charts.js",
   "./assets/js/app.js",
   "./assets/icons/icon-192.png",
