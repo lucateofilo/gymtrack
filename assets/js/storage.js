@@ -15,6 +15,13 @@ function loadData() {
     if (!Array.isArray(data.sets)) data.sets = [];
     if (!Array.isArray(data.routineGroups)) data.routineGroups = [];
     if (!Array.isArray(data.routines)) data.routines = [];
+    for (const r of data.routines) {
+      if (!Array.isArray(r.items)) {
+        r.items = Array.isArray(r.exerciseIds)
+          ? r.exerciseIds.map((exerciseId) => ({ exerciseId, sets: 3, reps: 8, rir: null }))
+          : [];
+      }
+    }
     return data;
   } catch {
     return emptyData();
@@ -167,9 +174,9 @@ const Store = {
     return loadData().routines.find((r) => r.id === id) || null;
   },
 
-  addRoutine({ groupId, name, exerciseIds = [] }) {
+  addRoutine({ groupId, name, items = [] }) {
     const data = loadData();
-    const routine = { id: genId(), groupId, name: name.trim(), exerciseIds };
+    const routine = { id: genId(), groupId, name: name.trim(), items };
     data.routines.push(routine);
     saveData(data);
     return routine;

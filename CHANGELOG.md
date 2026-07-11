@@ -3,6 +3,15 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (target serie/reps/RIR nelle schede) + icone SVG
+
+### Aggiunto
+- **Target serie/ripetizioni/RIR per esercizio**: mancava nella scheda (si impostava solo il recupero). Ogni esercizio di una scheda ora ha anche `sets`/`reps`/`rir` pianificati (`routine.items[]` sostituisce il precedente `exerciseIds[]`, con migrazione automatica in lettura dei dati già salvati). "Avvia allenamento" pre-riempie le ripetizioni del primo esercizio col target della scheda.
+
+### Modificato
+- Sostituite tutte le emoji (✏️ 🗑️ 🔥 🏆) con SVG inline coerenti con lo stile già usato altrove nell'app (stroke, `currentColor`), sia nei pulsanti di modifica/elimina sia nel badge PR, nel toast record e nello streak.
+- Bump `CACHE_NAME` a `gymtrack-v4`.
+
 ## 2026-07-11 — Feature (schede in stile Hevy, timer avanzato)
 
 ### Aggiunto

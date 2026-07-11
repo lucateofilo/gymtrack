@@ -471,11 +471,25 @@ main {
   background: transparent;
   padding: 6px;
   border-radius: 8px;
-  font-size: 14px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.cat-manager-actions button svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .cat-manager-actions button:disabled {
   opacity: 0.3;
+}
+
+.ex-delete,
+.rg-delete,
+.routine-delete {
+  color: #e34948;
 }
 
 /* Progression chart */
@@ -500,7 +514,28 @@ main {
 }
 
 .pr-badge {
-  font-size: 12px;
+  display: inline-flex;
+  vertical-align: middle;
+  color: #f59e0b;
+}
+
+.pr-badge svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.streak-flame {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 2px;
+  color: #f59e0b;
+}
+
+.streak-flame svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 /* Streak calendar */
@@ -583,6 +618,17 @@ main {
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toast svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+  color: #f59e0b;
 }
 
 /* Bottom nav */
@@ -684,6 +730,15 @@ main {
   height: 30px;
   border-radius: 50%;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .modal-form label {

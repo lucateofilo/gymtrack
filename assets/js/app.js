@@ -1,6 +1,12 @@
 const MONTHS_IT = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const MONTHS_IT_SHORT = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+const ICON_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M17 4H7v6a5 5 0 0 0 10 0V4Z"></path><path d="M5 4H3v2a4 4 0 0 0 4 4"></path><path d="M19 4h2v2a4 4 0 0 1-4 4"></path></svg>';
+const ICON_FLAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>';
+const PR_BADGE_HTML = `<span class="pr-badge" title="Record personale">${ICON_TROPHY}</span>`;
+
 let periodType = "week";
 let periodAnchor = startOfDay(new Date());
 let currentWorkoutId = null;
@@ -153,10 +159,10 @@ function computeWeekStreak() {
   return streak;
 }
 
-function toast(message) {
+function toast(html) {
   const el = document.createElement("div");
   el.className = "toast";
-  el.textContent = message;
+  el.innerHTML = html;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
 }
@@ -187,8 +193,8 @@ function renderHomeTotals(workouts) {
 function renderStreakChip() {
   const el = document.getElementById("streakChip");
   const streak = computeWeekStreak();
-  el.textContent = streak > 0
-    ? `\u{1F525} ${streak} settiman${streak === 1 ? "a" : "e"} di fila`
+  el.innerHTML = streak > 0
+    ? `<span class="streak-flame">${ICON_FLAME}</span>${streak} settiman${streak === 1 ? "a" : "e"} di fila`
     : "Inizia il tuo streak settimanale";
 }
 
@@ -263,10 +269,10 @@ function renderRoutinesSection() {
       li.innerHTML = `
         <div class="routine-info">
           <span class="routine-name">${routine.name}</span>
-          <span class="routine-meta">${routine.exerciseIds.length} esercizi</span>
+          <span class="routine-meta">${routine.items.length} esercizi</span>
         </div>
         <div class="routine-actions">
-          <button type="button" class="icon-btn routine-edit-btn" data-routine-id="${routine.id}" aria-label="Modifica scheda">✏️</button>
+          <button type="button" class="icon-btn routine-edit-btn" data-routine-id="${routine.id}" aria-label="Modifica scheda">${ICON_EDIT}</button>
           <button type="button" class="btn primary routine-start-btn" data-routine-id="${routine.id}">Avvia allenamento</button>
         </div>
       `;
@@ -336,7 +342,7 @@ function renderSetsList(workoutId) {
     li.className = "movement-item";
     li.innerHTML = `
       <div class="info">
-        <div class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}${prIds.has(s.id) ? ' <span class="pr-badge" title="Record personale">\u{1F3C6}</span>' : ""}</div>
+        <div class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}${prIds.has(s.id) ? " " + PR_BADGE_HTML : ""}</div>
         <div class="note">${s.weight} kg × ${s.reps}${s.rir != null ? " · RIR " + s.rir : ""}</div>
       </div>
       <button type="button" class="icon-btn set-delete" data-set-id="${s.id}" aria-label="Elimina serie">&#10005;</button>
@@ -387,7 +393,7 @@ function handleAddSet() {
   renderSetsList(currentWorkoutId);
   document.getElementById("deleteWorkoutBtn").hidden = false;
 
-  if (isPR) toast("\u{1F3C6} Nuovo record personale!");
+  if (isPR) toast(`${ICON_TROPHY} Nuovo record personale!`);
 }
 
 function openWorkoutModal(mode, workout, routineId) {
@@ -413,7 +419,9 @@ function openWorkoutModal(mode, workout, routineId) {
     startingRoutineId = routineId || null;
     routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
     document.getElementById("deleteWorkoutBtn").hidden = true;
-    populateExerciseSelect(routine && routine.exerciseIds[0] ? routine.exerciseIds[0] : null);
+    const firstItem = routine && routine.items[0] ? routine.items[0] : null;
+    populateExerciseSelect(firstItem ? firstItem.exerciseId : null);
+    if (firstItem) document.getElementById("setReps").value = firstItem.reps;
   }
   document.getElementById("workoutModalTitle").textContent = routine ? routine.name : (mode === "edit" ? "Modifica allenamento" : "Nuovo allenamento");
 
@@ -561,8 +569,8 @@ function renderExerciseManager() {
         <span class="budget-badge">riposo ${formatTimer(getExerciseRest(ex.id))}</span>
       </span>
       <div class="cat-manager-actions">
-        <button type="button" class="ex-edit" data-exercise-id="${ex.id}" aria-label="Modifica esercizio">✏️</button>
-        <button type="button" class="ex-delete" data-exercise-id="${ex.id}" ${inUse ? "disabled" : ""} title="${inUse ? "Non eliminabile: ha serie registrate" : "Elimina esercizio"}" aria-label="Elimina esercizio">\u{1F5D1}️</button>
+        <button type="button" class="ex-edit" data-exercise-id="${ex.id}" aria-label="Modifica esercizio">${ICON_EDIT}</button>
+        <button type="button" class="ex-delete" data-exercise-id="${ex.id}" ${inUse ? "disabled" : ""} title="${inUse ? "Non eliminabile: ha serie registrate" : "Elimina esercizio"}" aria-label="Elimina esercizio">${ICON_TRASH}</button>
       </div>
     `;
     list.appendChild(li);
@@ -592,9 +600,10 @@ function handleDeleteExercise(id) {
 }
 
 // --- Routines (schede) ---
-// The exercise list is edited as a local draft (editingRoutineExerciseIds) and only
+// The exercise list is edited as a local draft (editingRoutineItems) and only
 // persisted to Store on "Salva scheda", same deferred pattern as the exercise edit form.
-let editingRoutineExerciseIds = [];
+// Each item: { exerciseId, sets, reps, rir }. Rest time stays on the exercise itself (global).
+let editingRoutineItems = [];
 
 function renderRoutineGroupManager() {
   const container = document.getElementById("routineGroupManager");
@@ -619,7 +628,7 @@ function renderRoutineGroupManager() {
     wrap.innerHTML = `
       <div class="routine-group-header">
         <span>${bucket.group.name}</span>
-        ${bucket.group.id ? `<div class="cat-manager-actions"><button type="button" class="rg-delete" data-group-id="${bucket.group.id}" ${bucket.routines.length > 0 ? "disabled" : ""} title="${bucket.routines.length > 0 ? "Non eliminabile: ha schede collegate" : "Elimina gruppo"}" aria-label="Elimina gruppo">\u{1F5D1}️</button></div>` : ""}
+        ${bucket.group.id ? `<div class="cat-manager-actions"><button type="button" class="rg-delete" data-group-id="${bucket.group.id}" ${bucket.routines.length > 0 ? "disabled" : ""} title="${bucket.routines.length > 0 ? "Non eliminabile: ha schede collegate" : "Elimina gruppo"}" aria-label="Elimina gruppo">${ICON_TRASH}</button></div>` : ""}
       </div>
       <ul class="category-manager"></ul>
     `;
@@ -627,10 +636,10 @@ function renderRoutineGroupManager() {
     for (const routine of bucket.routines) {
       const li = document.createElement("li");
       li.innerHTML = `
-        <span class="cat-name">${routine.name} <span class="budget-badge">${routine.exerciseIds.length} esercizi</span></span>
+        <span class="cat-name">${routine.name} <span class="budget-badge">${routine.items.length} esercizi</span></span>
         <div class="cat-manager-actions">
-          <button type="button" class="routine-edit" data-routine-id="${routine.id}" aria-label="Modifica scheda">✏️</button>
-          <button type="button" class="routine-delete" data-routine-id="${routine.id}" aria-label="Elimina scheda">\u{1F5D1}️</button>
+          <button type="button" class="routine-edit" data-routine-id="${routine.id}" aria-label="Modifica scheda">${ICON_EDIT}</button>
+          <button type="button" class="routine-delete" data-routine-id="${routine.id}" aria-label="Elimina scheda">${ICON_TRASH}</button>
         </div>
       `;
       list.appendChild(li);
@@ -665,7 +674,8 @@ function toggleNewRoutineGroupFields() {
 
 function populateRoutineExerciseSelect() {
   const select = document.getElementById("routineExerciseSelect");
-  const available = Store.getExercises().filter((e) => !editingRoutineExerciseIds.includes(e.id));
+  const usedIds = editingRoutineItems.map((it) => it.exerciseId);
+  const available = Store.getExercises().filter((e) => !usedIds.includes(e.id));
   select.innerHTML = "";
   for (const ex of available) {
     const opt = document.createElement("option");
@@ -680,6 +690,9 @@ function populateRoutineExerciseSelect() {
 
   select.value = available[0] ? available[0].id : "__new__";
   document.getElementById("routineExerciseRest").value = available[0] ? getExerciseRest(available[0].id) : 90;
+  document.getElementById("routineExerciseSets").value = 3;
+  document.getElementById("routineExerciseReps").value = 8;
+  document.getElementById("routineExerciseRir").value = "";
   toggleNewRoutineExerciseFields();
 }
 
@@ -693,20 +706,23 @@ function renderRoutineExercisesList() {
   const emptyState = document.getElementById("routineExercisesEmpty");
   list.innerHTML = "";
 
-  if (editingRoutineExerciseIds.length === 0) {
+  if (editingRoutineItems.length === 0) {
     emptyState.hidden = false;
     return;
   }
   emptyState.hidden = true;
 
-  editingRoutineExerciseIds.forEach((exerciseId, idx) => {
-    const exercise = Store.getExerciseById(exerciseId);
+  editingRoutineItems.forEach((item, idx) => {
+    const exercise = Store.getExerciseById(item.exerciseId);
     const li = document.createElement("li");
     li.innerHTML = `
-      <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"} <span class="budget-badge">riposo ${formatTimer(getExerciseRest(exerciseId))}</span></span>
+      <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}
+        <span class="budget-badge">${item.sets}×${item.reps}${item.rir != null ? " · RIR " + item.rir : ""}</span>
+        <span class="budget-badge">riposo ${formatTimer(getExerciseRest(item.exerciseId))}</span>
+      </span>
       <div class="cat-manager-actions">
         <button type="button" class="rex-move" data-index="${idx}" data-direction="-1" ${idx === 0 ? "disabled" : ""} aria-label="Sposta su">&#8593;</button>
-        <button type="button" class="rex-move" data-index="${idx}" data-direction="1" ${idx === editingRoutineExerciseIds.length - 1 ? "disabled" : ""} aria-label="Sposta giù">&#8595;</button>
+        <button type="button" class="rex-move" data-index="${idx}" data-direction="1" ${idx === editingRoutineItems.length - 1 ? "disabled" : ""} aria-label="Sposta giù">&#8595;</button>
         <button type="button" class="rex-remove" data-index="${idx}" aria-label="Rimuovi">&#10005;</button>
       </div>
     `;
@@ -717,6 +733,10 @@ function renderRoutineExercisesList() {
 function handleAddExerciseToRoutine() {
   let exerciseId = document.getElementById("routineExerciseSelect").value;
   const restSeconds = Math.max(0, Number(document.getElementById("routineExerciseRest").value) || 0);
+  const sets = Math.max(1, Number(document.getElementById("routineExerciseSets").value) || 1);
+  const reps = Math.max(1, Number(document.getElementById("routineExerciseReps").value) || 1);
+  const rirRaw = document.getElementById("routineExerciseRir").value;
+  const rir = rirRaw === "" ? null : Math.min(10, Math.max(0, Number(rirRaw)));
 
   if (exerciseId === "__new__") {
     const name = document.getElementById("newRoutineExerciseName").value.trim();
@@ -730,7 +750,7 @@ function handleAddExerciseToRoutine() {
     Store.updateExercise(exerciseId, { restSeconds });
   }
 
-  editingRoutineExerciseIds.push(exerciseId);
+  editingRoutineItems.push({ exerciseId, sets, reps, rir });
   document.getElementById("newRoutineExerciseName").value = "";
   populateRoutineExerciseSelect();
   renderRoutineExercisesList();
@@ -738,13 +758,13 @@ function handleAddExerciseToRoutine() {
 
 function handleMoveRoutineExercise(index, direction) {
   const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= editingRoutineExerciseIds.length) return;
-  [editingRoutineExerciseIds[index], editingRoutineExerciseIds[newIndex]] = [editingRoutineExerciseIds[newIndex], editingRoutineExerciseIds[index]];
+  if (newIndex < 0 || newIndex >= editingRoutineItems.length) return;
+  [editingRoutineItems[index], editingRoutineItems[newIndex]] = [editingRoutineItems[newIndex], editingRoutineItems[index]];
   renderRoutineExercisesList();
 }
 
 function handleRemoveRoutineExercise(index) {
-  editingRoutineExerciseIds.splice(index, 1);
+  editingRoutineItems.splice(index, 1);
   renderRoutineExercisesList();
   populateRoutineExerciseSelect();
 }
@@ -758,13 +778,13 @@ function openRoutineModal(mode, routine) {
     document.getElementById("routineModalTitle").textContent = "Modifica scheda";
     document.getElementById("routineName").value = routine.name;
     populateRoutineGroupSelect(routine.groupId);
-    editingRoutineExerciseIds = [...routine.exerciseIds];
+    editingRoutineItems = routine.items.map((it) => ({ ...it }));
     document.getElementById("deleteRoutineBtn").hidden = false;
   } else {
     editingRoutineId = null;
     document.getElementById("routineModalTitle").textContent = "Nuova scheda";
     populateRoutineGroupSelect(null);
-    editingRoutineExerciseIds = [];
+    editingRoutineItems = [];
     document.getElementById("deleteRoutineBtn").hidden = true;
   }
 
@@ -776,7 +796,7 @@ function openRoutineModal(mode, routine) {
 function closeRoutineModal() {
   document.getElementById("routineModal").hidden = true;
   editingRoutineId = null;
-  editingRoutineExerciseIds = [];
+  editingRoutineItems = [];
 }
 
 function handleSaveRoutine() {
@@ -797,9 +817,9 @@ function handleSaveRoutine() {
   }
 
   if (editingRoutineId) {
-    Store.updateRoutine(editingRoutineId, { name, groupId, exerciseIds: editingRoutineExerciseIds });
+    Store.updateRoutine(editingRoutineId, { name, groupId, items: editingRoutineItems });
   } else {
-    Store.addRoutine({ groupId, name, exerciseIds: editingRoutineExerciseIds });
+    Store.addRoutine({ groupId, name, items: editingRoutineItems });
   }
 
   closeRoutineModal();
