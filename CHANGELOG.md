@@ -3,6 +3,14 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Fix (torna al modale, zoom, timer interrotto)
+
+### Fix
+- La schermata sessione a schermo intero introdotta prima non era coerente con lo stile a foglio del resto dell'app. Ripristinato il modale `#workoutModal` originale (form Esercizio/Peso/Reps/RIR piatto), mantenendo timer di riposo e stima serie già integrati.
+- `.modal-form input`/`select` erano a `font-size: 15px`, sotto la soglia dei 16px che iOS/Android usano per decidere se ingrandire automaticamente la pagina al focus di un campo: lo zoom restava attivo e la pagina non si riadattava. Portato a 16px.
+- **Timer interrotto chiudendo il modale**: `closeWorkoutModal()` fermava sempre il timer di riposo/cronometro serie, anche solo chiudendo per sbaglio o per guardare le Statistiche. Ora il timer continua in background (gli `setInterval` restano attivi, aggiornano elementi nascosti ma presenti nel DOM) e `openWorkoutModal()` non lo resetta più a 90s se uno è già in corso.
+- Bump `CACHE_NAME` a `gymtrack-v2` in `sw.js` (non veniva mai aggiornato dall'init: chi aveva già installato la PWA offline continuava a vedere asset vecchi ad ogni modifica).
+
 ## 2026-07-11 — Modificato (icona v3)
 
 ### Modificato

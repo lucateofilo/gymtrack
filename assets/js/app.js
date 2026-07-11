@@ -10,9 +10,6 @@ let restTimerInterval = null;
 let restTimerRemaining = 90;
 let restStoppedAt = null;
 let setStopwatchInterval = null;
-let sessionPages = ["__add__"]; // exerciseId strings, or "__add__" for the trailing add-exercise page
-let sessionPageIndex = 0;
-let sessionSteppers = new Map(); // exerciseId -> { weight, reps, rir }
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -220,7 +217,7 @@ function renderWorkoutsList(workouts) {
         <span class="date">${dateLabel}</span>
       </div>
     `;
-    li.addEventListener("click", () => openSession("edit", w));
+    li.addEventListener("click", () => openWorkoutModal("edit", w));
     list.appendChild(li);
   }
 }
@@ -235,147 +232,11 @@ function fillMuscleGroupOptions(select) {
   }
 }
 
-function openSession(mode, workout) {
-  clearSetStopwatch(false);
-  setRestTimer(90);
-  sessionSteppers = new Map();
-
-  document.getElementById("workoutNote").value = "";
-  document.getElementById("workoutDate").value = toISODate(new Date());
-
-  if (mode === "edit") {
-    currentWorkoutId = workout.id;
-    document.getElementById("workoutDate").value = workout.date;
-    document.getElementById("workoutNote").value = workout.note || "";
-    document.getElementById("deleteWorkoutBtn").hidden = false;
-
-    const seen = new Set();
-    sessionPages = [];
-    for (const s of Store.getSetsForWorkout(workout.id)) {
-      if (!seen.has(s.exerciseId)) {
-        seen.add(s.exerciseId);
-        sessionPages.push(s.exerciseId);
-      }
-    }
-    sessionPages.push("__add__");
-  } else {
-    currentWorkoutId = null;
-    document.getElementById("deleteWorkoutBtn").hidden = true;
-    sessionPages = ["__add__"];
-  }
-
-  sessionPageIndex = 0;
-  renderSessionPager();
-  document.getElementById("sessionScreen").hidden = false;
-}
-
-function closeSession() {
-  stopRestTimer();
-  clearSetStopwatch(false);
-  if (currentWorkoutId && Store.getSetsForWorkout(currentWorkoutId).length === 0) {
-    Store.deleteWorkout(currentWorkoutId);
-  }
-  document.getElementById("sessionScreen").hidden = true;
-  currentWorkoutId = null;
-  renderAll();
-}
-
-function handleDeleteWorkoutSession() {
-  if (!currentWorkoutId) return;
-  Store.deleteWorkout(currentWorkoutId);
-  currentWorkoutId = null;
-  stopRestTimer();
-  clearSetStopwatch(false);
-  document.getElementById("sessionScreen").hidden = true;
-  renderAll();
-}
-
-function goToPage(index) {
-  if (index < 0 || index >= sessionPages.length) return;
-  sessionPageIndex = index;
-  renderSessionPager();
-}
-
-function renderSessionPager() {
-  const dotsContainer = document.getElementById("pagerDots");
-  dotsContainer.innerHTML = "";
-  sessionPages.forEach((page, i) => {
-    const dot = document.createElement("button");
-    dot.type = "button";
-    dot.className = "pager-dot" + (i === sessionPageIndex ? " active" : "") + (page === "__add__" ? " add" : "");
-    dot.textContent = page === "__add__" ? "+" : "";
-    dot.dataset.index = i;
-    dotsContainer.appendChild(dot);
-  });
-  document.getElementById("pagerPrev").disabled = sessionPageIndex === 0;
-  document.getElementById("pagerNext").disabled = sessionPageIndex === sessionPages.length - 1;
-  renderSessionPage();
-}
-
-function stepperRowHtml(field, label) {
-  const step = field === "weight" ? 2.5 : 1;
-  return `
-    <div class="stepper-row">
-      <span class="stepper-label">${label}</span>
-      <div class="stepper">
-        <button type="button" class="stepper-btn" data-field="${field}" data-delta="${-step}" aria-label="Diminuisci">&#8722;</button>
-        <span class="stepper-value" id="stepperValue-${field}">–</span>
-        <button type="button" class="stepper-btn" data-field="${field}" data-delta="${step}" aria-label="Aumenta">+</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderSessionPage() {
-  const content = document.getElementById("sessionPageContent");
-  const page = sessionPages[sessionPageIndex];
-
-  if (page === "__add__") {
-    content.innerHTML = `
-      <label>
-        Esercizio
-        <select id="setExerciseSelect">
-          <option value="__new__">+ Nuovo esercizio</option>
-        </select>
-      </label>
-      <div id="newExerciseFields" class="new-category-fields" hidden>
-        <label>
-          Nome
-          <input type="text" id="newExerciseName" maxlength="30" placeholder="Es. Panca piana">
-        </label>
-        <label>
-          Gruppo
-          <select id="newExerciseGroup"></select>
-        </label>
-      </div>
-      <button type="button" id="confirmExercisePageBtn" class="btn primary">Conferma esercizio</button>
-    `;
-    fillMuscleGroupOptions(document.getElementById("newExerciseGroup"));
-    populateSessionExerciseSelect();
-    return;
-  }
-
-  const exercise = Store.getExerciseById(page);
-  content.innerHTML = `
-    <h2 class="session-exercise-name">${exercise ? exercise.name : "Esercizio eliminato"}</h2>
-    <ul id="setsList" class="movements-list sets-list"></ul>
-    <p id="setsEmpty" class="empty-state" hidden>Nessuna serie aggiunta.</p>
-    ${stepperRowHtml("weight", "Peso (kg)")}
-    ${stepperRowHtml("reps", "Reps")}
-    ${stepperRowHtml("rir", "RIR")}
-    <button type="button" id="addSetBtn" class="btn primary">+ Aggiungi serie</button>
-  `;
-  renderSessionSetsList(page);
-  updateStepperDisplay();
-}
-
-function populateSessionExerciseSelect() {
+function populateExerciseSelect(selectedId) {
   const select = document.getElementById("setExerciseSelect");
-  const alreadyUsed = new Set(sessionPages.filter((p) => p !== "__add__"));
-  const available = Store.getExercises().filter((e) => !alreadyUsed.has(e.id));
-
+  const exercises = Store.getExercises();
   select.innerHTML = "";
-  for (const ex of available) {
+  for (const ex of exercises) {
     const opt = document.createElement("option");
     opt.value = ex.id;
     opt.textContent = ex.name;
@@ -386,17 +247,54 @@ function populateSessionExerciseSelect() {
   newOpt.textContent = "+ Nuovo esercizio";
   select.appendChild(newOpt);
 
-  select.value = available[0] ? available[0].id : "__new__";
-  toggleNewExerciseFieldsSession();
+  select.value = selectedId && exercises.some((e) => e.id === selectedId)
+    ? selectedId
+    : exercises[0] ? exercises[0].id : "__new__";
+  toggleNewExerciseFields();
 }
 
-function toggleNewExerciseFieldsSession() {
+function toggleNewExerciseFields() {
   const select = document.getElementById("setExerciseSelect");
   document.getElementById("newExerciseFields").hidden = select.value !== "__new__";
 }
 
-function confirmExercisePage() {
+function renderSetsList(workoutId) {
+  const list = document.getElementById("setsList");
+  const emptyState = document.getElementById("setsEmpty");
+  list.innerHTML = "";
+
+  const sets = workoutId ? Store.getSetsForWorkout(workoutId) : [];
+  if (sets.length === 0) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+
+  const prIds = new Set();
+  for (const ex of Store.getExercises()) {
+    for (const id of getPRSetIds(ex.id)) prIds.add(id);
+  }
+
+  for (const s of sets) {
+    const exercise = Store.getExerciseById(s.exerciseId);
+    const li = document.createElement("li");
+    li.className = "movement-item";
+    li.innerHTML = `
+      <div class="info">
+        <div class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}${prIds.has(s.id) ? ' <span class="pr-badge" title="Record personale">\u{1F3C6}</span>' : ""}</div>
+        <div class="note">${s.weight} kg × ${s.reps}${s.rir != null ? " · RIR " + s.rir : ""}</div>
+      </div>
+      <button type="button" class="icon-btn set-delete" data-set-id="${s.id}" aria-label="Elimina serie">&#10005;</button>
+    `;
+    list.appendChild(li);
+  }
+}
+
+function handleAddSet() {
   let exerciseId = document.getElementById("setExerciseSelect").value;
+  const weight = document.getElementById("setWeight").value;
+  const reps = document.getElementById("setReps").value;
+  const rir = document.getElementById("setRir").value;
 
   if (exerciseId === "__new__") {
     const name = document.getElementById("newExerciseName").value.trim();
@@ -408,85 +306,10 @@ function confirmExercisePage() {
     exerciseId = Store.addExercise(name, group).id;
   }
 
-  sessionPages[sessionPageIndex] = exerciseId;
-  sessionPages.push("__add__");
-  renderSessionPager();
-}
-
-function renderSessionSetsList(exerciseId) {
-  const list = document.getElementById("setsList");
-  const emptyState = document.getElementById("setsEmpty");
-  list.innerHTML = "";
-
-  const sets = currentWorkoutId
-    ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId)
-    : [];
-  if (sets.length === 0) {
-    emptyState.hidden = false;
+  if (!reps || Number(reps) <= 0) {
+    document.getElementById("setReps").focus();
     return;
   }
-  emptyState.hidden = true;
-
-  const prIds = new Set(getPRSetIds(exerciseId));
-  sets.forEach((s, i) => {
-    const li = document.createElement("li");
-    li.className = "movement-item";
-    li.innerHTML = `
-      <div class="info">
-        <div class="cat-name">Serie ${i + 1}${prIds.has(s.id) ? ' <span class="pr-badge" title="Record personale">\u{1F3C6}</span>' : ""}</div>
-        <div class="note">${s.weight} kg × ${s.reps}${s.rir != null ? " · RIR " + s.rir : ""}</div>
-      </div>
-      <button type="button" class="icon-btn set-delete" data-set-id="${s.id}" aria-label="Elimina serie">&#10005;</button>
-    `;
-    list.appendChild(li);
-  });
-}
-
-function seedStepper(exerciseId) {
-  if (sessionSteppers.has(exerciseId)) return sessionSteppers.get(exerciseId);
-  const setsThisWorkout = currentWorkoutId
-    ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId)
-    : [];
-  const last = setsThisWorkout[setsThisWorkout.length - 1];
-  const seeded = last ? { weight: last.weight, reps: last.reps, rir: last.rir } : { weight: 20, reps: 8, rir: null };
-  sessionSteppers.set(exerciseId, seeded);
-  return seeded;
-}
-
-function updateStepperDisplay() {
-  const page = sessionPages[sessionPageIndex];
-  if (page === "__add__") return;
-  const state = seedStepper(page);
-  document.getElementById("stepperValue-weight").textContent = state.weight;
-  document.getElementById("stepperValue-reps").textContent = state.reps;
-  document.getElementById("stepperValue-rir").textContent = state.rir == null ? "–" : state.rir;
-}
-
-function handleStepperClick(field, delta) {
-  const page = sessionPages[sessionPageIndex];
-  if (page === "__add__") return;
-  const state = seedStepper(page);
-
-  if (field === "weight") {
-    state.weight = Math.max(0, Math.round((state.weight + delta) * 2) / 2);
-  } else if (field === "reps") {
-    state.reps = Math.max(0, state.reps + delta);
-  } else if (field === "rir") {
-    if (state.rir == null) {
-      if (delta > 0) state.rir = 0;
-    } else {
-      const next = state.rir + delta;
-      state.rir = next < 0 ? null : Math.min(10, next);
-    }
-  }
-  updateStepperDisplay();
-}
-
-function handleAddSetSession() {
-  const exerciseId = sessionPages[sessionPageIndex];
-  if (exerciseId === "__add__") return;
-  const state = seedStepper(exerciseId);
-  if (!state.reps || state.reps <= 0) return;
 
   if (!currentWorkoutId) {
     currentWorkoutId = Store.addWorkout({
@@ -496,14 +319,70 @@ function handleAddSetSession() {
   }
 
   const prevBest = exerciseBestE1RM(exerciseId);
-  const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight: state.weight, reps: state.reps, rir: state.rir });
+  const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight, reps, rir });
   const isPR = estimate1RM(set.weight, set.reps) > prevBest;
   clearSetStopwatch(true, exerciseId);
 
-  renderSessionSetsList(exerciseId);
+  document.getElementById("setWeight").value = "";
+  document.getElementById("setReps").value = "";
+  document.getElementById("setRir").value = "";
+  populateExerciseSelect(exerciseId);
+  document.getElementById("newExerciseName").value = "";
+  renderSetsList(currentWorkoutId);
   document.getElementById("deleteWorkoutBtn").hidden = false;
 
   if (isPR) toast("\u{1F3C6} Nuovo record personale!");
+}
+
+function openWorkoutModal(mode, workout) {
+  const modal = document.getElementById("workoutModal");
+  // Don't reset an already-running rest timer / set stopwatch: closing the modal
+  // (to peek at Stats, answer a call, etc.) must not interrupt an in-progress rest.
+  if (!restTimerInterval && !restStoppedAt) {
+    setRestTimer(90);
+  }
+
+  document.getElementById("workoutNote").value = "";
+  document.getElementById("workoutDate").value = toISODate(new Date());
+  document.getElementById("setWeight").value = "";
+  document.getElementById("setReps").value = "";
+  document.getElementById("setRir").value = "";
+  populateExerciseSelect(null);
+
+  if (mode === "edit") {
+    currentWorkoutId = workout.id;
+    document.getElementById("workoutModalTitle").textContent = "Modifica allenamento";
+    document.getElementById("workoutDate").value = workout.date;
+    document.getElementById("workoutNote").value = workout.note || "";
+    document.getElementById("deleteWorkoutBtn").hidden = false;
+  } else {
+    currentWorkoutId = null;
+    document.getElementById("workoutModalTitle").textContent = "Nuovo allenamento";
+    document.getElementById("deleteWorkoutBtn").hidden = true;
+  }
+
+  renderSetsList(currentWorkoutId);
+  modal.hidden = false;
+}
+
+function closeWorkoutModal() {
+  // Rest timer / set stopwatch keep running in the background on purpose (see openWorkoutModal).
+  if (currentWorkoutId && Store.getSetsForWorkout(currentWorkoutId).length === 0) {
+    Store.deleteWorkout(currentWorkoutId);
+  }
+  document.getElementById("workoutModal").hidden = true;
+  currentWorkoutId = null;
+  renderAll();
+}
+
+function handleDeleteWorkout() {
+  if (!currentWorkoutId) return;
+  Store.deleteWorkout(currentWorkoutId);
+  currentWorkoutId = null;
+  stopRestTimer();
+  clearSetStopwatch(false);
+  document.getElementById("workoutModal").hidden = true;
+  renderAll();
 }
 
 function formatTimer(sec) {
@@ -554,8 +433,8 @@ function updateSetStopwatchDisplay() {
     return;
   }
   const elapsed = Math.round((Date.now() - restStoppedAt) / 1000);
-  const page = sessionPages[sessionPageIndex];
-  const exercise = page && page !== "__add__" ? Store.getExerciseById(page) : null;
+  const exerciseId = document.getElementById("setExerciseSelect").value;
+  const exercise = exerciseId && exerciseId !== "__new__" ? Store.getExerciseById(exerciseId) : null;
   const estimate = exercise && exercise.avgSetSeconds != null
     ? ` · media ${formatTimer(Math.round(exercise.avgSetSeconds))}`
     : "";
@@ -799,6 +678,7 @@ function registerServiceWorker() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  fillMuscleGroupOptions(document.getElementById("newExerciseGroup"));
   fillMuscleGroupOptions(document.getElementById("exerciseGroup"));
 
   document.getElementById("periodType").addEventListener("change", (e) => {
@@ -813,10 +693,13 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => switchView(btn.dataset.view));
   });
 
-  document.getElementById("fab").addEventListener("click", () => openSession("add"));
-  document.getElementById("closeSessionBtn").addEventListener("click", closeSession);
-  document.getElementById("doneWorkoutBtn").addEventListener("click", closeSession);
-  document.getElementById("deleteWorkoutBtn").addEventListener("click", handleDeleteWorkoutSession);
+  document.getElementById("fab").addEventListener("click", () => openWorkoutModal("add"));
+  document.getElementById("closeWorkoutModal").addEventListener("click", closeWorkoutModal);
+  document.getElementById("doneWorkoutBtn").addEventListener("click", closeWorkoutModal);
+  document.getElementById("deleteWorkoutBtn").addEventListener("click", handleDeleteWorkout);
+  document.getElementById("workoutModal").addEventListener("click", (e) => {
+    if (e.target.id === "workoutModal") closeWorkoutModal();
+  });
 
   document.getElementById("workoutDate").addEventListener("change", (e) => {
     if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { date: e.target.value });
@@ -825,35 +708,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { note: e.target.value });
   });
 
-  document.getElementById("pagerPrev").addEventListener("click", () => goToPage(sessionPageIndex - 1));
-  document.getElementById("pagerNext").addEventListener("click", () => goToPage(sessionPageIndex + 1));
-  document.getElementById("pagerDots").addEventListener("click", (e) => {
-    const dot = e.target.closest(".pager-dot");
-    if (dot) goToPage(Number(dot.dataset.index));
-  });
-
-  document.getElementById("sessionPageContent").addEventListener("click", (e) => {
-    if (e.target.closest("#confirmExercisePageBtn")) {
-      confirmExercisePage();
-      return;
-    }
-    if (e.target.closest("#addSetBtn")) {
-      handleAddSetSession();
-      return;
-    }
-    const stepperBtn = e.target.closest(".stepper-btn");
-    if (stepperBtn) {
-      handleStepperClick(stepperBtn.dataset.field, Number(stepperBtn.dataset.delta));
-      return;
-    }
-    const delBtn = e.target.closest(".set-delete");
-    if (delBtn) {
-      Store.deleteSet(delBtn.dataset.setId);
-      renderSessionSetsList(sessionPages[sessionPageIndex]);
-    }
-  });
-  document.getElementById("sessionPageContent").addEventListener("change", (e) => {
-    if (e.target.id === "setExerciseSelect") toggleNewExerciseFieldsSession();
+  document.getElementById("setExerciseSelect").addEventListener("change", toggleNewExerciseFields);
+  document.getElementById("addSetBtn").addEventListener("click", handleAddSet);
+  document.getElementById("setsList").addEventListener("click", (e) => {
+    const btn = e.target.closest(".set-delete");
+    if (!btn) return;
+    Store.deleteSet(btn.dataset.setId);
+    renderSetsList(currentWorkoutId);
   });
 
   document.querySelectorAll(".rest-preset").forEach((btn) => {
