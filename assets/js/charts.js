@@ -13,7 +13,7 @@ function renderTrend(periods) {
     const heightPct = (p.value / maxAbs) * 100;
     col.innerHTML = `
       <div class="trend-bar-track">
-        <div class="trend-bar positive" style="height:${heightPct}%" title="${p.value}"></div>
+        <div class="trend-bar" style="height:${heightPct}%" title="${p.value}"></div>
       </div>
       <span class="trend-label">${p.label}</span>
     `;

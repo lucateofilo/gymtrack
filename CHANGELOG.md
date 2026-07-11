@@ -3,6 +3,13 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Refactor (audit ponytail)
+
+### Modificato
+- Rimossa la classe `positive` su `.trend-bar`: nessuna regola CSS la usava (residuo del pattern entrata/uscita di Spicciolo, qui il trend è un conteggio sempre positivo).
+- Unite `.routine-group-title` e `.routine-group-header span`, stessa regola duplicata due volte.
+- Sostituite `.cat-manager-actions button:disabled` + `.exercise-remove-btn:disabled` (stessa dichiarazione `opacity:.3` ripetuta) con un unico `button:disabled` globale.
+
 ## 2026-07-11 — Feature (log serie in stile Hevy: righe con spunta)
 
 ### Aggiunto

@@ -295,12 +295,16 @@ main {
 }
 
 /* Routines (schede) */
-.routine-group-title {
+.routine-group-title,
+.routine-group-header span {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.routine-group-title {
   margin: 14px 0 6px;
 }
 
@@ -369,14 +373,6 @@ main {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 4px;
-}
-
-.routine-group-header span {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 /* Category / muscle group totals with bars (reused pattern) */
@@ -482,7 +478,7 @@ main {
   display: block;
 }
 
-.cat-manager-actions button:disabled {
+button:disabled {
   opacity: 0.3;
 }
 
@@ -708,10 +704,6 @@ main {
   color: var(--accent);
   font-weight: 600;
   font-size: 13px;
-}
-
-.exercise-remove-btn:disabled {
-  opacity: 0.3;
 }
 
 /* Toast */
