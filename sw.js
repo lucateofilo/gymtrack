@@ -1,4 +1,4 @@
-const CACHE_NAME = "gymtrack-v5";
+const CACHE_NAME = "gymtrack-v6";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -588,6 +588,54 @@ button:disabled {
   font-size: 13px;
 }
 
+.plate-calc-link {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plate-calc-result {
+  margin-top: 4px;
+}
+
+.plate-calc-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.plate-calc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plate-calc-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gridline);
+  font-size: 15px;
+}
+
+.plate-calc-list li:last-child {
+  border-bottom: none;
+}
+
+.plate-calc-size {
+  font-weight: 600;
+}
+
+.plate-calc-count {
+  color: var(--text-secondary);
+}
+
 .add-set-form {
   background: var(--surface-2);
   border-radius: 12px;
@@ -613,6 +661,13 @@ button:disabled {
 .exercise-block-header h3 {
   margin: 0;
   font-size: 14px;
+}
+
+.exercise-block-note {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .set-row {

@@ -165,6 +165,7 @@
           <button type="button" class="btn secondary" id="restTimerReset">Azzera</button>
           <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
         </div>
+        <button type="button" id="plateCalcBtn" class="plate-calc-link">Calcolatore dischi</button>
       </div>
       <p id="setStopwatch" class="period-average" hidden></p>
 
@@ -298,13 +299,38 @@
           Recupero tra le serie (s)
           <input type="number" id="routineExerciseRest" min="0" step="15" value="90">
         </label>
+        <label>
+          Nota (opzionale)
+          <input type="text" id="routineExerciseNote" maxlength="60" placeholder="Es. gomiti stretti">
+        </label>
         <button type="button" id="addRoutineExerciseBtn" class="btn secondary">+ Aggiungi esercizio</button>
       </div>
 
       <div class="modal-actions">
         <button type="button" id="deleteRoutineBtn" class="btn danger" hidden>Elimina scheda</button>
+        <button type="button" id="duplicateRoutineBtn" class="btn secondary" hidden>Duplica</button>
         <button type="button" id="saveRoutineBtn" class="btn primary">Salva scheda</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="plateCalcModal" class="modal" hidden>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Calcolatore dischi</h2>
+      <button id="closePlateCalcModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    </div>
+    <div class="modal-form">
+      <label>
+        Peso totale (kg)
+        <input type="number" id="plateCalcTarget" inputmode="decimal" step="0.5" min="0" placeholder="Es. 100">
+      </label>
+      <label>
+        Peso bilanciere (kg)
+        <input type="number" id="plateCalcBar" inputmode="decimal" step="0.5" min="0" value="20">
+      </label>
+      <div id="plateCalcResult" class="plate-calc-result"></div>
     </div>
   </div>
 </div>

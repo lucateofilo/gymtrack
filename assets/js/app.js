@@ -171,6 +171,56 @@ function toast(html) {
   setTimeout(() => el.remove(), 2200);
 }
 
+const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
+
+function computePlatesPerSide(target, bar) {
+  let remaining = Math.max(0, (target - bar) / 2);
+  const plates = [];
+  for (const size of PLATE_SIZES) {
+    let count = 0;
+    while (remaining + 1e-9 >= size) {
+      remaining -= size;
+      count++;
+    }
+    if (count > 0) plates.push({ size, count });
+  }
+  return { plates, leftover: remaining };
+}
+
+function renderPlateCalc() {
+  const target = Number(document.getElementById("plateCalcTarget").value) || 0;
+  const bar = Number(document.getElementById("plateCalcBar").value) || 0;
+  const result = document.getElementById("plateCalcResult");
+
+  if (target <= bar) {
+    result.innerHTML = '<p class="empty-state">Il peso totale deve superare il bilanciere.</p>';
+    return;
+  }
+
+  const { plates, leftover } = computePlatesPerSide(target, bar);
+  if (plates.length === 0) {
+    result.innerHTML = '<p class="empty-state">Nessun disco necessario.</p>';
+    return;
+  }
+
+  result.innerHTML = `
+    <p class="plate-calc-hint">Per lato:</p>
+    <ul class="plate-calc-list">
+      ${plates.map((p) => `<li><span class="plate-calc-size">${p.size} kg</span><span class="plate-calc-count">× ${p.count}</span></li>`).join("")}
+    </ul>
+    ${leftover > 0.01 ? `<p class="plate-calc-hint">Resto non caricabile: ${leftover.toFixed(2)} kg per lato</p>` : ""}
+  `;
+}
+
+function openPlateCalcModal() {
+  renderPlateCalc();
+  document.getElementById("plateCalcModal").hidden = false;
+}
+
+function closePlateCalcModal() {
+  document.getElementById("plateCalcModal").hidden = true;
+}
+
 function renderAll() {
   document.getElementById("periodLabel").textContent = getPeriodLabel(periodType, periodAnchor);
 
@@ -388,12 +438,14 @@ function renderExerciseBlockHtml(exerciseId) {
   });
 
   const canRemove = completedSets.length === 0;
+  const note = getRoutineItemNote(exerciseId);
   return `
     <div class="exercise-block" data-exercise-id="${exerciseId}">
       <div class="exercise-block-header">
         <h3>${exercise ? exercise.name : "Esercizio eliminato"}</h3>
         <button type="button" class="icon-btn exercise-remove-btn" data-exercise-id="${exerciseId}" ${canRemove ? "" : "disabled"} title="${canRemove ? "Rimuovi esercizio" : "Non rimovibile: ha serie registrate"}" aria-label="Rimuovi esercizio">${ICON_TRASH}</button>
       </div>
+      ${note ? `<p class="exercise-block-note">${note}</p>` : ""}
       <div class="set-row set-row-header">
         <span>#</span><span>Prec.</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span>
       </div>
@@ -616,6 +668,12 @@ function formatTimer(sec) {
 function getExerciseRest(exerciseId) {
   const exercise = exerciseId ? Store.getExerciseById(exerciseId) : null;
   return exercise && exercise.restSeconds != null ? exercise.restSeconds : 90;
+}
+
+function getRoutineItemNote(exerciseId) {
+  const routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
+  const item = routine ? routine.items.find((it) => it.exerciseId === exerciseId) : null;
+  return item ? item.note : "";
 }
 
 function updateRestTimerDisplay() {
@@ -841,6 +899,7 @@ function populateRoutineExerciseSelect() {
   document.getElementById("routineExerciseSets").value = 3;
   document.getElementById("routineExerciseReps").value = 8;
   document.getElementById("routineExerciseRir").value = "";
+  document.getElementById("routineExerciseNote").value = "";
   toggleNewRoutineExerciseFields();
 }
 
@@ -867,6 +926,7 @@ function renderRoutineExercisesList() {
       <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}
         <span class="budget-badge">${item.sets}×${item.reps}${item.rir != null ? " · RIR " + item.rir : ""}</span>
         <span class="budget-badge">riposo ${formatTimer(getExerciseRest(item.exerciseId))}</span>
+        ${item.note ? `<span class="budget-badge">${item.note}</span>` : ""}
       </span>
       <div class="cat-manager-actions">
         <button type="button" class="rex-move" data-index="${idx}" data-direction="-1" ${idx === 0 ? "disabled" : ""} aria-label="Sposta su">&#8593;</button>
@@ -885,6 +945,7 @@ function handleAddExerciseToRoutine() {
   const reps = Math.max(1, Number(document.getElementById("routineExerciseReps").value) || 1);
   const rirRaw = document.getElementById("routineExerciseRir").value;
   const rir = rirRaw === "" ? null : Math.min(10, Math.max(0, Number(rirRaw)));
+  const note = document.getElementById("routineExerciseNote").value.trim();
 
   if (exerciseId === "__new__") {
     const name = document.getElementById("newRoutineExerciseName").value.trim();
@@ -898,7 +959,7 @@ function handleAddExerciseToRoutine() {
     Store.updateExercise(exerciseId, { restSeconds });
   }
 
-  editingRoutineItems.push({ exerciseId, sets, reps, rir });
+  editingRoutineItems.push({ exerciseId, sets, reps, rir, note });
   document.getElementById("newRoutineExerciseName").value = "";
   populateRoutineExerciseSelect();
   renderRoutineExercisesList();
@@ -928,12 +989,14 @@ function openRoutineModal(mode, routine) {
     populateRoutineGroupSelect(routine.groupId);
     editingRoutineItems = routine.items.map((it) => ({ ...it }));
     document.getElementById("deleteRoutineBtn").hidden = false;
+    document.getElementById("duplicateRoutineBtn").hidden = false;
   } else {
     editingRoutineId = null;
     document.getElementById("routineModalTitle").textContent = "Nuova scheda";
     populateRoutineGroupSelect(null);
     editingRoutineItems = [];
     document.getElementById("deleteRoutineBtn").hidden = true;
+    document.getElementById("duplicateRoutineBtn").hidden = true;
   }
 
   populateRoutineExerciseSelect();
@@ -977,6 +1040,19 @@ function handleSaveRoutine() {
 function handleDeleteRoutine() {
   if (!editingRoutineId) return;
   Store.deleteRoutine(editingRoutineId);
+  closeRoutineModal();
+  renderAll();
+}
+
+function handleDuplicateRoutine() {
+  if (!editingRoutineId) return;
+  const routine = Store.getRoutineById(editingRoutineId);
+  if (!routine) return;
+  Store.addRoutine({
+    groupId: routine.groupId,
+    name: `${routine.name} (copia)`,
+    items: routine.items.map((it) => ({ ...it })),
+  });
   closeRoutineModal();
   renderAll();
 }
@@ -1216,6 +1292,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("restTimerReset").addEventListener("click", resetRestTimer);
 
+  document.getElementById("plateCalcBtn").addEventListener("click", openPlateCalcModal);
+  document.getElementById("closePlateCalcModal").addEventListener("click", closePlateCalcModal);
+  document.getElementById("plateCalcModal").addEventListener("click", (e) => {
+    if (e.target.id === "plateCalcModal") closePlateCalcModal();
+  });
+  document.getElementById("plateCalcTarget").addEventListener("input", renderPlateCalc);
+  document.getElementById("plateCalcBar").addEventListener("input", renderPlateCalc);
+
   document.getElementById("addExerciseBtn").addEventListener("click", () => {
     document.getElementById("exerciseModalTitle").textContent = "Nuovo esercizio";
     editingExerciseId = null;
@@ -1327,6 +1411,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("saveRoutineBtn").addEventListener("click", handleSaveRoutine);
   document.getElementById("deleteRoutineBtn").addEventListener("click", handleDeleteRoutine);
+  document.getElementById("duplicateRoutineBtn").addEventListener("click", handleDuplicateRoutine);
 
   registerServiceWorker();
   renderAll();

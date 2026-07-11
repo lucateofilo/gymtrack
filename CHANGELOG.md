@@ -3,6 +3,13 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (nota esercizio, duplica scheda, calcolatore dischi)
+
+### Aggiunto
+- **Nota per esercizio**: campo opzionale su ogni esercizio della scheda (`routine.items[].note`), mostrato durante il log sotto il nome dell'esercizio.
+- **Duplica scheda**: bottone nel modale scheda (solo in modifica) che crea una copia con stessi gruppo/esercizi e nome "{nome} (copia)".
+- **Calcolatore dischi**: link nel timer di riposo apre un modale con peso totale e peso bilanciere, calcola i dischi per lato (greedy su 25/20/15/10/5/2.5/1.25kg).
+
 ## 2026-07-11 — Refactor (audit ponytail)
 
 ### Modificato
