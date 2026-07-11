@@ -393,6 +393,10 @@ function getPreviousSets(exerciseId) {
   return [];
 }
 
+function isCardioExercise(exerciseId) {
+  return Store.getExerciseById(exerciseId)?.unit === "cardio";
+}
+
 // Guarantees at least one empty draft row is ready to fill in, seeded from the last
 // completed set this session or, failing that, from the previous workout's first set.
 function ensurePendingRows(exerciseId) {
@@ -404,23 +408,40 @@ function ensurePendingRows(exerciseId) {
   if (rows.length === 0) {
     const completed = currentWorkoutId ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId) : [];
     const seed = completed[completed.length - 1] || getPreviousSets(exerciseId)[0] || {};
-    rows.push({ weight: seed.weight ?? null, reps: seed.reps ?? null, rir: seed.rir ?? null });
+    rows.push({
+      weight: seed.weight ?? null,
+      reps: seed.reps ?? null,
+      rir: seed.rir ?? null,
+      durationMin: seed.durationMin ?? null,
+      distanceKm: seed.distanceKm ?? null,
+    });
   }
   return rows;
 }
 
-function setRowHtml({ index, completed, exerciseId, setId, pendingIndex, weight, reps, rir, prevRef, isPR }) {
+function setRowHtml({ index, completed, exerciseId, setId, pendingIndex, weight, reps, rir, durationMin, distanceKm, prevRef, isPR, isCardio }) {
   const rowClass = "set-row" + (completed ? " completed" : "");
   const rowAttrs = completed
     ? `data-set-id="${setId}" data-exercise-id="${exerciseId}"`
     : `data-pending-index="${pendingIndex}" data-exercise-id="${exerciseId}"`;
+
+  const fieldsHtml = isCardio
+    ? `
+      <input type="number" class="set-input set-field-duration" inputmode="decimal" step="1" min="0" placeholder="0" value="${durationMin != null ? durationMin : ""}">
+      <input type="number" class="set-input set-field-distance" inputmode="decimal" step="0.1" min="0" placeholder="0" value="${distanceKm != null ? distanceKm : ""}">
+      <span></span>
+    `
+    : `
+      <input type="number" class="set-input set-field-weight" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${weight != null ? weight : ""}">
+      <input type="number" class="set-input set-field-reps" inputmode="numeric" step="1" min="0" placeholder="0" value="${reps != null ? reps : ""}">
+      <input type="number" class="set-input set-field-rir" inputmode="numeric" step="1" min="0" max="10" placeholder="-" value="${rir != null ? rir : ""}">
+    `;
+
   return `
     <div class="${rowClass}" ${rowAttrs}>
       <span class="set-index">${index + 1}${isPR ? " " + PR_BADGE_HTML : ""}</span>
       <span class="set-prev">${prevRef}</span>
-      <input type="number" class="set-input set-field-weight" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${weight != null ? weight : ""}">
-      <input type="number" class="set-input set-field-reps" inputmode="numeric" step="1" min="0" placeholder="0" value="${reps != null ? reps : ""}">
-      <input type="number" class="set-input set-field-rir" inputmode="numeric" step="1" min="0" max="10" placeholder="-" value="${rir != null ? rir : ""}">
+      ${fieldsHtml}
       <button type="button" class="set-check${completed ? " checked" : ""}" aria-label="${completed ? "Segna come non completata" : "Segna come completata"}">${ICON_CHECK}</button>
     </div>
   `;
@@ -428,26 +449,34 @@ function setRowHtml({ index, completed, exerciseId, setId, pendingIndex, weight,
 
 function renderExerciseBlockHtml(exerciseId) {
   const exercise = Store.getExerciseById(exerciseId);
+  const isCardio = exercise?.unit === "cardio";
   const completedSets = currentWorkoutId ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId) : [];
   const pendingRows = ensurePendingRows(exerciseId);
   const prevSets = getPreviousSets(exerciseId);
-  const prIds = new Set(getPRSetIds(exerciseId));
+  const prIds = isCardio ? new Set() : new Set(getPRSetIds(exerciseId));
+
+  const formatPrev = (s) => isCardio
+    ? `${s.durationMin ?? 0}min${s.distanceKm ? " · " + s.distanceKm + "km" : ""}`
+    : `${s.weight}×${s.reps}`;
 
   let rowsHtml = "";
   let rowIndex = 0;
   for (const s of completedSets) {
-    const prevRef = prevSets[rowIndex] ? `${prevSets[rowIndex].weight}×${prevSets[rowIndex].reps}` : "–";
-    rowsHtml += setRowHtml({ index: rowIndex, completed: true, exerciseId, setId: s.id, weight: s.weight, reps: s.reps, rir: s.rir, prevRef, isPR: prIds.has(s.id) });
+    const prevRef = prevSets[rowIndex] ? formatPrev(prevSets[rowIndex]) : "–";
+    rowsHtml += setRowHtml({ index: rowIndex, completed: true, exerciseId, setId: s.id, weight: s.weight, reps: s.reps, rir: s.rir, durationMin: s.durationMin, distanceKm: s.distanceKm, prevRef, isPR: prIds.has(s.id), isCardio });
     rowIndex++;
   }
   pendingRows.forEach((row, pendingIndex) => {
-    const prevRef = prevSets[rowIndex] ? `${prevSets[rowIndex].weight}×${prevSets[rowIndex].reps}` : "–";
-    rowsHtml += setRowHtml({ index: rowIndex, completed: false, exerciseId, pendingIndex, weight: row.weight, reps: row.reps, rir: row.rir, prevRef });
+    const prevRef = prevSets[rowIndex] ? formatPrev(prevSets[rowIndex]) : "–";
+    rowsHtml += setRowHtml({ index: rowIndex, completed: false, exerciseId, pendingIndex, weight: row.weight, reps: row.reps, rir: row.rir, durationMin: row.durationMin, distanceKm: row.distanceKm, prevRef, isCardio });
     rowIndex++;
   });
 
   const canRemove = completedSets.length === 0;
   const note = getRoutineItemNote(exerciseId);
+  const headerCols = isCardio
+    ? "<span>#</span><span>Prec.</span><span>Min</span><span>Km</span><span></span><span></span>"
+    : "<span>#</span><span>Prec.</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span>";
   return `
     <div class="exercise-block" data-exercise-id="${exerciseId}">
       <div class="exercise-block-header">
@@ -456,7 +485,7 @@ function renderExerciseBlockHtml(exerciseId) {
       </div>
       ${note ? `<p class="exercise-block-note">${note}</p>` : ""}
       <div class="set-row set-row-header">
-        <span>#</span><span>Prec.</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span>
+        ${headerCols}
       </div>
       ${rowsHtml}
       <button type="button" class="add-set-row-btn" data-exercise-id="${exerciseId}">+ Serie</button>
@@ -518,7 +547,8 @@ function handleSetFieldChange(row, field, value) {
     const changes = {};
     if (field === "weight") changes.weight = Math.abs(Number(value)) || 0;
     else if (field === "reps") changes.reps = Math.max(0, Math.round(Number(value)) || 0);
-    else changes.rir = value === "" ? null : Number(value);
+    else if (field === "rir") changes.rir = value === "" ? null : Number(value);
+    else changes[field] = value === "" ? null : Number(value); // durationMin / distanceKm
     Store.updateSet(row.dataset.setId, changes);
   } else {
     const rows = pendingRowsByExercise.get(exerciseId);
@@ -529,6 +559,7 @@ function handleSetFieldChange(row, field, value) {
 
 function handleSetCheckClick(row) {
   const exerciseId = row.dataset.exerciseId;
+  const isCardio = isCardioExercise(exerciseId);
 
   if (row.dataset.setId) {
     // Completed -> uncheck: delete the set, bring its values back as an editable draft row.
@@ -536,21 +567,30 @@ function handleSetCheckClick(row) {
     Store.deleteSet(row.dataset.setId);
     if (set) {
       const rows = pendingRowsByExercise.get(exerciseId) || [];
-      rows.push({ weight: set.weight, reps: set.reps, rir: set.rir });
+      rows.push({ weight: set.weight, reps: set.reps, rir: set.rir, durationMin: set.durationMin, distanceKm: set.distanceKm });
       pendingRowsByExercise.set(exerciseId, rows);
     }
     renderExerciseBlocks();
     return;
   }
 
-  const weight = Number(row.querySelector(".set-field-weight").value) || 0;
-  const reps = Number(row.querySelector(".set-field-reps").value) || 0;
-  const rirRaw = row.querySelector(".set-field-rir").value;
-  const rir = rirRaw === "" ? null : Number(rirRaw);
-
-  if (reps <= 0) {
-    row.querySelector(".set-field-reps").focus();
-    return;
+  let weight = 0, reps = 0, rir = null, durationMin = null, distanceKm = null;
+  if (isCardio) {
+    durationMin = Number(row.querySelector(".set-field-duration").value) || 0;
+    distanceKm = Number(row.querySelector(".set-field-distance").value) || 0;
+    if (durationMin <= 0) {
+      row.querySelector(".set-field-duration").focus();
+      return;
+    }
+  } else {
+    weight = Number(row.querySelector(".set-field-weight").value) || 0;
+    reps = Number(row.querySelector(".set-field-reps").value) || 0;
+    const rirRaw = row.querySelector(".set-field-rir").value;
+    rir = rirRaw === "" ? null : Number(rirRaw);
+    if (reps <= 0) {
+      row.querySelector(".set-field-reps").focus();
+      return;
+    }
   }
 
   if (!currentWorkoutId) {
@@ -562,9 +602,9 @@ function handleSetCheckClick(row) {
     }).id;
   }
 
-  const prevBest = exerciseBestE1RM(exerciseId);
-  const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight, reps, rir });
-  const isPR = estimate1RM(set.weight, set.reps) > prevBest;
+  const prevBest = isCardio ? -Infinity : exerciseBestE1RM(exerciseId);
+  const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight, reps, rir, durationMin, distanceKm });
+  const isPR = !isCardio && estimate1RM(set.weight, set.reps) > prevBest;
 
   const rows = pendingRowsByExercise.get(exerciseId);
   if (rows) rows.splice(Number(row.dataset.pendingIndex), 1);
@@ -587,7 +627,7 @@ function handleSetCheckClick(row) {
 function handleAddSetRowClick(exerciseId) {
   const rows = ensurePendingRows(exerciseId);
   const last = rows[rows.length - 1];
-  rows.push({ weight: last.weight, reps: last.reps, rir: last.rir });
+  rows.push({ weight: last.weight, reps: last.reps, rir: last.rir, durationMin: last.durationMin, distanceKm: last.distanceKm });
   renderExerciseBlocks();
 }
 
@@ -665,7 +705,14 @@ function openWorkoutModal(mode, workout, routineId) {
     if (routine) {
       sessionExerciseIds = routine.items.map((it) => it.exerciseId);
       for (const item of routine.items) {
-        pendingRowsByExercise.set(item.exerciseId, Array.from({ length: item.sets }, () => ({ weight: null, reps: item.reps, rir: item.rir })));
+        const isCardio = isCardioExercise(item.exerciseId);
+        pendingRowsByExercise.set(item.exerciseId, Array.from({ length: item.sets }, () => ({
+          weight: null,
+          reps: isCardio ? null : item.reps,
+          rir: isCardio ? null : item.rir,
+          durationMin: null,
+          distanceKm: null,
+        })));
       }
     } else {
       sessionExerciseIds = [];
@@ -1327,7 +1374,7 @@ function handleDuplicateRoutine() {
 
 function populateProgressionExerciseSelect() {
   const select = document.getElementById("progressionExerciseSelect");
-  const exercises = Store.getExercises();
+  const exercises = Store.getExercises().filter((e) => e.unit !== "cardio");
   const current = select.value || statsExerciseId;
   select.innerHTML = "";
 
@@ -1429,7 +1476,7 @@ function downloadBlob(blob, filename) {
 
 function exportSetsCSV() {
   const workouts = Store.getWorkouts();
-  const rows = [["Data", "Esercizio", "Gruppo", "Peso", "Reps", "RIR"]];
+  const rows = [["Data", "Esercizio", "Gruppo", "Peso", "Reps", "RIR", "Durata (min)", "Distanza (km)"]];
 
   const sorted = [...Store.getSets()].sort((a, b) => {
     const da = workouts.find((w) => w.id === a.workoutId)?.date || "";
@@ -1447,6 +1494,8 @@ function exportSetsCSV() {
       s.weight,
       s.reps,
       s.rir != null ? s.rir : "",
+      s.durationMin != null ? s.durationMin : "",
+      s.distanceKm != null ? s.distanceKm : "",
     ]);
   }
 
@@ -1608,7 +1657,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!input) return;
     const field = input.classList.contains("set-field-weight") ? "weight"
       : input.classList.contains("set-field-reps") ? "reps"
-      : "rir";
+      : input.classList.contains("set-field-rir") ? "rir"
+      : input.classList.contains("set-field-duration") ? "durationMin"
+      : "distanceKm";
     handleSetFieldChange(input.closest(".set-row"), field, input.value);
   });
 

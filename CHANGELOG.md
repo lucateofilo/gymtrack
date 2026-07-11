@@ -3,6 +3,17 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (esercizi cardio: durata/distanza al posto di peso/reps)
+
+### Aggiunto
+- Nuova unità esercizio **"Cardio (durata/distanza)"** in Gestione. Per questi esercizi le righe serie mostrano Min/Km invece di Kg/Reps/RIR (`set.durationMin`/`set.distanceKm` sul record serie, `weight`/`reps` restano 0), col riferimento "ultima volta" formattato di conseguenza (es. "30min · 5.2km").
+- Avviando una scheda con un esercizio cardio, le righe pre-create ignorano il target reps (non applicabile) e restano vuote da compilare.
+- Colonne "Durata (min)" e "Distanza (km)" aggiunte all'export CSV serie.
+
+### Modificato
+- Gli esercizi cardio sono esclusi dal calcolo PR/1RM stimato e dalla select "Progressione" in Statistiche (concetti di forza non applicabili). Volume/serie totali in Home restano invariati: peso×reps=0 per le serie cardio non altera i totali.
+- Bump `CACHE_NAME` a `gymtrack-v10`.
+
 ## 2026-07-11 — Feature (export CSV Corpo, obiettivo peso, tag difficoltà)
 
 ### Aggiunto

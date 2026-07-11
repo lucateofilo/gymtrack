@@ -127,7 +127,7 @@ const Store = {
     return loadData().sets.filter((s) => s.workoutId === workoutId);
   },
 
-  addSet({ workoutId, exerciseId, weight, reps, rir = null }) {
+  addSet({ workoutId, exerciseId, weight, reps, rir = null, durationMin = null, distanceKm = null }) {
     const data = loadData();
     const set = {
       id: genId(),
@@ -136,6 +136,8 @@ const Store = {
       weight: Math.abs(Number(weight)) || 0,
       reps: Math.max(0, Math.round(Number(reps))) || 0,
       rir: rir === "" || rir === null || rir === undefined ? null : Number(rir),
+      durationMin: durationMin === "" || durationMin == null ? null : Number(durationMin),
+      distanceKm: distanceKm === "" || distanceKm == null ? null : Number(distanceKm),
     };
     data.sets.push(set);
     saveData(data);
