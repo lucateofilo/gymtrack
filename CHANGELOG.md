@@ -3,6 +3,11 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Modificato (icona app)
+
+### Modificato
+- Sostituite le icone placeholder (riusate da Spicciolo) con un logo dedicato: bilanciere stilizzato in arancione accent (`#ea580c`) su sfondo navy (`#0f172a`), generato via raster con supersampling 4x (nessuna libreria grafica di sistema disponibile nell'ambiente).
+
 ## 2026-07-11 — Init
 
 ### Aggiunto
