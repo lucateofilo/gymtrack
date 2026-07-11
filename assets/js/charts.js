@@ -120,7 +120,7 @@ function renderBodyWeightChart(points) {
   svg.innerHTML = `<polyline points="${linePoints}" class="progression-line"></polyline>${dots}`;
 
   const latest = points[points.length - 1].value;
-  latestLabel.textContent = `Ultimo: ${latest.toLocaleString("it-IT", { maximumFractionDigits: 1 })} kg`;
+  latestLabel.textContent = `Ultimo: ${formatKg(latest)}`;
 }
 
 function renderStreakCalendar(year, monthIndex, workoutDates) {

@@ -168,12 +168,12 @@ function computeWeekStreak() {
   return streak;
 }
 
-function toast(html) {
+function toast(html, duration = 2200) {
   const el = document.createElement("div");
   el.className = "toast";
   el.innerHTML = html;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
+  setTimeout(() => el.remove(), duration);
 }
 
 const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -232,6 +232,7 @@ function renderAll() {
   const { start, end } = getPeriodBounds(periodType, periodAnchor);
   const workouts = getWorkoutsInRange(start, end);
 
+  renderBackupReminder();
   renderRoutinesSection();
   renderHomeTotals(workouts);
   renderStreakChip();
@@ -461,6 +462,20 @@ function renderExerciseBlockHtml(exerciseId) {
   `;
 }
 
+function getSupersetId(exerciseId) {
+  const routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
+  const item = routine ? routine.items.find((it) => it.exerciseId === exerciseId) : null;
+  return item ? item.supersetId : null;
+}
+
+function isLastInSuperset(exerciseId) {
+  const supersetId = getSupersetId(exerciseId);
+  if (!supersetId) return true;
+  const routine = Store.getRoutineById(startingRoutineId);
+  const groupItems = routine.items.filter((it) => it.supersetId === supersetId);
+  return groupItems[groupItems.length - 1].exerciseId === exerciseId;
+}
+
 function renderExerciseBlocks() {
   const container = document.getElementById("exerciseBlocks");
   const emptyState = document.getElementById("exerciseBlocksEmpty");
@@ -472,7 +487,27 @@ function renderExerciseBlocks() {
   }
   emptyState.hidden = true;
 
-  container.innerHTML = sessionExerciseIds.map(renderExerciseBlockHtml).join("");
+  // Consecutive exercises sharing a supersetId (routine-defined) are wrapped together.
+  let html = "";
+  let i = 0;
+  while (i < sessionExerciseIds.length) {
+    const exerciseId = sessionExerciseIds[i];
+    const supersetId = getSupersetId(exerciseId);
+    if (supersetId) {
+      const group = [exerciseId];
+      let j = i + 1;
+      while (j < sessionExerciseIds.length && getSupersetId(sessionExerciseIds[j]) === supersetId) {
+        group.push(sessionExerciseIds[j]);
+        j++;
+      }
+      html += `<div class="superset-group"><span class="superset-label">Superset</span>${group.map(renderExerciseBlockHtml).join("")}</div>`;
+      i = j;
+    } else {
+      html += renderExerciseBlockHtml(exerciseId);
+      i++;
+    }
+  }
+  container.innerHTML = html;
 }
 
 function handleSetFieldChange(row, field, value) {
@@ -532,10 +567,13 @@ function handleSetCheckClick(row) {
   if (rows) rows.splice(Number(row.dataset.pendingIndex), 1);
   clearSetStopwatch(true, exerciseId);
 
-  // Rest timer auto-starts on completion, following this exercise's configured rest time.
-  activeRestExerciseId = exerciseId;
-  resetRestTimer();
-  startRestTimer();
+  // Rest timer auto-starts on completion, following this exercise's configured rest time —
+  // but only after the last exercise of a superset pair, not between paired exercises.
+  if (isLastInSuperset(exerciseId)) {
+    activeRestExerciseId = exerciseId;
+    resetRestTimer();
+    startRestTimer();
+  }
 
   document.getElementById("deleteWorkoutBtn").hidden = false;
   renderExerciseBlocks();
@@ -650,6 +688,34 @@ function closeWorkoutModal() {
   sessionExerciseIds = [];
   pendingRowsByExercise = new Map();
   renderAll();
+}
+
+function getWorkoutStats(workoutId) {
+  const sets = Store.getSetsForWorkout(workoutId);
+  return { volume: sets.reduce((s, x) => s + x.weight * x.reps, 0), sets: sets.length };
+}
+
+function getPreviousRoutineWorkout(routineId, excludeWorkoutId) {
+  return [...Store.getWorkouts()]
+    .filter((w) => w.routineId === routineId && w.id !== excludeWorkoutId)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
+}
+
+// "Fatto": unlike closeWorkoutModal (X, just hides), this is a deliberate end-of-session
+// action, so it's the natural moment to compare against the routine's previous run.
+function finishWorkout() {
+  if (startingRoutineId && currentWorkoutId && Store.getSetsForWorkout(currentWorkoutId).length > 0) {
+    const prev = getPreviousRoutineWorkout(startingRoutineId, currentWorkoutId);
+    if (prev) {
+      const cur = getWorkoutStats(currentWorkoutId);
+      const prevStats = getWorkoutStats(prev.id);
+      const deltaVolume = Math.round(cur.volume - prevStats.volume);
+      const deltaSets = cur.sets - prevStats.sets;
+      const fmt = (n) => (n > 0 ? `+${n}` : `${n}`);
+      toast(`Rispetto alla volta scorsa: volume ${fmt(deltaVolume)}kg, serie ${fmt(deltaSets)}`, 3500);
+    }
+  }
+  closeWorkoutModal();
 }
 
 function handleDeleteWorkout() {
@@ -804,7 +870,7 @@ function renderBodyLogList() {
     li.className = "movement-item";
     li.innerHTML = `
       <div class="info">
-        <div class="cat-name">${log.weight != null ? log.weight + " kg" : "Voce"}${log.hasPhoto ? `<span class="photo-badge">${ICON_CAMERA}</span>` : ""}</div>
+        <div class="cat-name">${log.weight != null ? formatKg(log.weight) : "Voce"}${log.hasPhoto ? `<span class="photo-badge">${ICON_CAMERA}</span>` : ""}</div>
         <div class="note">${measureParts.join(" · ") || "—"}</div>
       </div>
       <div class="meta">
@@ -1057,6 +1123,7 @@ function populateRoutineExerciseSelect() {
   document.getElementById("routineExerciseReps").value = 8;
   document.getElementById("routineExerciseRir").value = "";
   document.getElementById("routineExerciseNote").value = "";
+  document.getElementById("routineExerciseSuperset").checked = false;
   toggleNewRoutineExerciseFields();
 }
 
@@ -1083,6 +1150,7 @@ function renderRoutineExercisesList() {
       <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}
         <span class="budget-badge">${item.sets}×${item.reps}${item.rir != null ? " · RIR " + item.rir : ""}</span>
         <span class="budget-badge">riposo ${formatTimer(getExerciseRest(item.exerciseId))}</span>
+        ${item.supersetId ? '<span class="budget-badge">superset</span>' : ""}
         ${item.note ? `<span class="budget-badge">${item.note}</span>` : ""}
       </span>
       <div class="cat-manager-actions">
@@ -1103,6 +1171,7 @@ function handleAddExerciseToRoutine() {
   const rirRaw = document.getElementById("routineExerciseRir").value;
   const rir = rirRaw === "" ? null : Math.min(10, Math.max(0, Number(rirRaw)));
   const note = document.getElementById("routineExerciseNote").value.trim();
+  const pairWithPrevious = document.getElementById("routineExerciseSuperset").checked;
 
   if (exerciseId === "__new__") {
     const name = document.getElementById("newRoutineExerciseName").value.trim();
@@ -1116,7 +1185,14 @@ function handleAddExerciseToRoutine() {
     Store.updateExercise(exerciseId, { restSeconds });
   }
 
-  editingRoutineItems.push({ exerciseId, sets, reps, rir, note });
+  let supersetId = null;
+  const prev = editingRoutineItems[editingRoutineItems.length - 1];
+  if (pairWithPrevious && prev) {
+    if (!prev.supersetId) prev.supersetId = genId();
+    supersetId = prev.supersetId;
+  }
+
+  editingRoutineItems.push({ exerciseId, sets, reps, rir, note, supersetId });
   document.getElementById("newRoutineExerciseName").value = "";
   populateRoutineExerciseSelect();
   renderRoutineExercisesList();
@@ -1344,9 +1420,40 @@ function exportSetsCSV() {
   downloadBlob(blob, `gymtrack-serie-${toISODate(new Date())}.csv`);
 }
 
+const LAST_BACKUP_KEY = "gymtrack_last_backup";
+const BACKUP_REMINDER_DAYS = 14;
+
+function markBackupDone() {
+  localStorage.setItem(LAST_BACKUP_KEY, toISODate(new Date()));
+}
+
+function daysSinceLastBackup() {
+  const last = localStorage.getItem(LAST_BACKUP_KEY);
+  if (!last) return null;
+  return Math.floor((startOfDay(new Date()) - startOfDay(new Date(last + "T12:00:00"))) / 86400000);
+}
+
+function renderBackupReminder() {
+  const el = document.getElementById("backupReminder");
+  const hasData = Store.getExercises().length > 0 || Store.getWorkouts().length > 0 || Store.getRoutines().length > 0 || Store.getBodyLogs().length > 0;
+  const days = daysSinceLastBackup();
+
+  if (!hasData || (days != null && days < BACKUP_REMINDER_DAYS)) {
+    el.hidden = true;
+    return;
+  }
+
+  document.getElementById("backupReminderText").textContent = days == null
+    ? "Non hai mai esportato un backup."
+    : `Non esporti un backup da ${days} giorni.`;
+  el.hidden = false;
+}
+
 function exportBackup() {
   const json = JSON.stringify(Store.exportAll(), null, 2);
   downloadBlob(new Blob([json], { type: "application/json" }), `gymtrack-backup-${toISODate(new Date())}.json`);
+  markBackupDone();
+  renderBackupReminder();
 }
 
 function importBackup(file) {
@@ -1403,7 +1510,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("fab").addEventListener("click", () => openWorkoutModal("add"));
   document.getElementById("closeWorkoutModal").addEventListener("click", closeWorkoutModal);
-  document.getElementById("doneWorkoutBtn").addEventListener("click", closeWorkoutModal);
+  document.getElementById("doneWorkoutBtn").addEventListener("click", finishWorkout);
   document.getElementById("deleteWorkoutBtn").addEventListener("click", handleDeleteWorkout);
   document.getElementById("workoutModal").addEventListener("click", (e) => {
     if (e.target.id === "workoutModal") closeWorkoutModal();
@@ -1528,6 +1635,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("exportCsvBtn").addEventListener("click", exportSetsCSV);
   document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
+  document.getElementById("backupReminderBtn").addEventListener("click", exportBackup);
   document.getElementById("importBackupInput").addEventListener("change", (e) => {
     const file = e.target.files[0];
     e.target.value = "";

@@ -31,6 +31,11 @@
 
   <main>
     <section id="view-home" class="view active">
+      <div id="backupReminder" class="backup-reminder" hidden>
+        <span id="backupReminderText"></span>
+        <button type="button" id="backupReminderBtn" class="btn primary">Esporta backup</button>
+      </div>
+
       <div class="chart-card">
         <div class="totals-header">
           <h2>Le tue schede</h2>
@@ -323,6 +328,10 @@
         <label>
           Nota (opzionale)
           <input type="text" id="routineExerciseNote" maxlength="60" placeholder="Es. gomiti stretti">
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="routineExerciseSuperset">
+          Abbina in superset con l'esercizio precedente
         </label>
         <button type="button" id="addRoutineExerciseBtn" class="btn secondary">+ Aggiungi esercizio</button>
       </div>

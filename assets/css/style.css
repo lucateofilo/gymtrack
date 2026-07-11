@@ -277,6 +277,30 @@ main {
   margin-bottom: 16px;
 }
 
+.backup-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.backup-reminder span {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.backup-reminder .btn {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
 .chart-card h2, .chart-card h3 {
   margin: 0 0 12px;
   font-size: 15px;
@@ -942,6 +966,44 @@ button:disabled {
 
 .new-category-fields label:first-child {
   flex: 1;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.checkbox-label input {
+  display: inline;
+  width: auto;
+  margin: 0;
+}
+
+.superset-group {
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  margin-bottom: 10px;
+}
+
+.superset-group .exercise-block {
+  margin-bottom: 6px;
+}
+
+.superset-group .exercise-block:last-child {
+  margin-bottom: 0;
+}
+
+.superset-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
 }
 
 .photo-field {

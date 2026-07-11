@@ -208,10 +208,6 @@ const Store = {
     return loadData().bodyLogs;
   },
 
-  getBodyLogById(id) {
-    return loadData().bodyLogs.find((b) => b.id === id) || null;
-  },
-
   addBodyLog({ date, weight = null, measurements = {}, hasPhoto = false }) {
     const data = loadData();
     const log = { id: genId(), date, weight, measurements, hasPhoto };

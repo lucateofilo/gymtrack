@@ -3,6 +3,18 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (promemoria backup, confronto sessioni, superset)
+
+### Aggiunto
+- **Promemoria backup**: banner in Home se non è mai stato esportato un backup (con dati presenti) o sono passati più di 14 giorni dall'ultimo; il bottone esporta subito. Data ultimo backup tracciata in `localStorage` (`gymtrack_last_backup`), fuori dal blob dati principale.
+- **Confronto con la volta scorsa**: al tocco di "Fatto" (non chiudendo con la ✕, che resta un semplice "nascondi"), se l'allenamento viene da una scheda e ha serie registrate, confronta volume e numero di serie con la sessione precedente della stessa scheda in un toast.
+- **Superset**: in fase di creazione scheda, checkbox "Abbina in superset con l'esercizio precedente" collega due esercizi (`routine.items[].supersetId`). In log si mostrano raggruppati con un'etichetta; il timer di riposo parte solo dopo l'ultimo esercizio della coppia, non tra uno e l'altro.
+
+### Modificato (audit ponytail sul lotto di feature)
+- Rimosso `Store.getBodyLogById`, mai chiamato (la lista passa già l'oggetto per closure).
+- `renderBodyWeightChart` e la lista voci "Corpo" ora riusano `formatKg` invece di reimplementare la formattazione localizzata del peso.
+- Bump `CACHE_NAME` a `gymtrack-v8`.
+
 ## 2026-07-11 — Feature (tab Corpo: peso, misurazioni, foto)
 
 ### Aggiunto
