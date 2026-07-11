@@ -24,6 +24,8 @@ let editingRoutineId = null;
 let sessionExerciseIds = []; // ordered exerciseIds shown as blocks in the current workout modal session
 let pendingRowsByExercise = new Map(); // exerciseId -> [{weight, reps, rir}] draft rows not yet logged
 let activeRestExerciseId = null; // exercise the rest timer duration/estimate currently follows
+let selectedWorkoutFeeling = null;
+const FEELING_LABELS = { easy: "Facile", medium: "Media", hard: "Dura" };
 let editingBodyLogId = null;
 let editingBodyLogHasPhoto = false;
 let pendingBodyLogPhotoFile = null;
@@ -285,7 +287,7 @@ function renderWorkoutsList(workouts) {
     li.innerHTML = `
       <div class="info">
         <div class="cat-name">${title}</div>
-        <div class="note">${sets.length} serie · ${formatKg(volume)}${w.note ? " · " + w.note : ""}</div>
+        <div class="note">${sets.length} serie · ${formatKg(volume)}${w.feeling ? " · " + FEELING_LABELS[w.feeling] : ""}${w.note ? " · " + w.note : ""}</div>
       </div>
       <div class="meta">
         <span class="date">${dateLabel}</span>
@@ -556,6 +558,7 @@ function handleSetCheckClick(row) {
       date: document.getElementById("workoutDate").value || toISODate(new Date()),
       note: document.getElementById("workoutNote").value,
       routineId: startingRoutineId,
+      feeling: selectedWorkoutFeeling,
     }).id;
   }
 
@@ -619,12 +622,21 @@ function handleAddExerciseToWorkout() {
   renderExerciseBlocks();
 }
 
+function setWorkoutFeeling(feeling) {
+  selectedWorkoutFeeling = feeling;
+  document.querySelectorAll(".feeling-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.feeling === feeling);
+  });
+  if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { feeling });
+}
+
 function openWorkoutModal(mode, workout, routineId) {
   const modal = document.getElementById("workoutModal");
 
   document.getElementById("workoutNote").value = "";
   document.getElementById("workoutDate").value = toISODate(new Date());
   pendingRowsByExercise = new Map();
+  setWorkoutFeeling(null);
 
   let routine = null;
   if (mode === "edit") {
@@ -633,6 +645,7 @@ function openWorkoutModal(mode, workout, routineId) {
     routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
     document.getElementById("workoutDate").value = workout.date;
     document.getElementById("workoutNote").value = workout.note || "";
+    setWorkoutFeeling(workout.feeling || null);
     document.getElementById("deleteWorkoutBtn").hidden = false;
 
     const seen = new Set();
@@ -844,8 +857,30 @@ function renderBodyView() {
   const logs = [...Store.getBodyLogs()]
     .filter((l) => l.weight != null)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
-  renderBodyWeightChart(logs.map((l) => ({ date: l.date, value: l.weight })));
+  const goal = Store.getBodyWeightGoal();
+  renderBodyWeightChart(logs.map((l) => ({ date: l.date, value: l.weight })), goal);
   renderBodyLogList();
+  renderBodyGoal(logs, goal);
+}
+
+function renderBodyGoal(logs, goal) {
+  const goalInput = document.getElementById("bodyWeightGoalInput");
+  if (document.activeElement !== goalInput) {
+    goalInput.value = goal != null ? goal : "";
+  }
+
+  const diffEl = document.getElementById("bodyWeightGoalDiff");
+  const latest = logs.length > 0 ? logs[logs.length - 1].weight : null;
+  if (goal == null || latest == null) {
+    diffEl.hidden = true;
+    return;
+  }
+  const diff = latest - goal;
+  const sign = diff > 0 ? "+" : "";
+  diffEl.hidden = false;
+  diffEl.textContent = Math.abs(diff) < 0.05
+    ? "Obiettivo raggiunto"
+    : `Differenza dall'obiettivo: ${sign}${diff.toFixed(1)} kg`;
 }
 
 function renderBodyLogList() {
@@ -1420,6 +1455,28 @@ function exportSetsCSV() {
   downloadBlob(blob, `gymtrack-serie-${toISODate(new Date())}.csv`);
 }
 
+function exportBodyLogsCSV() {
+  const rows = [["Data", "Peso", "Vita", "Petto", "Braccia", "Cosce", "Fianchi"]];
+
+  const sorted = [...Store.getBodyLogs()].sort((a, b) => (a.date < b.date ? -1 : 1));
+  for (const log of sorted) {
+    const m = log.measurements || {};
+    rows.push([
+      log.date,
+      log.weight != null ? log.weight : "",
+      m.vita != null ? m.vita : "",
+      m.petto != null ? m.petto : "",
+      m.braccia != null ? m.braccia : "",
+      m.cosce != null ? m.cosce : "",
+      m.fianchi != null ? m.fianchi : "",
+    ]);
+  }
+
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `gymtrack-corpo-${toISODate(new Date())}.csv`);
+}
+
 const LAST_BACKUP_KEY = "gymtrack_last_backup";
 const BACKUP_REMINDER_DAYS = 14;
 
@@ -1522,6 +1579,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("workoutNote").addEventListener("input", (e) => {
     if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { note: e.target.value });
   });
+  document.querySelectorAll(".feeling-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setWorkoutFeeling(selectedWorkoutFeeling === btn.dataset.feeling ? null : btn.dataset.feeling);
+    });
+  });
 
   document.getElementById("setExerciseSelect").addEventListener("change", toggleNewExerciseFields);
   document.getElementById("addExerciseToWorkoutBtn").addEventListener("click", handleAddExerciseToWorkout);
@@ -1613,6 +1675,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderProgressionForExercise(statsExerciseId);
   });
 
+  document.getElementById("bodyWeightGoalInput").addEventListener("change", (e) => {
+    const value = e.target.value === "" ? null : Number(e.target.value);
+    Store.setBodyWeightGoal(value);
+    renderBodyView();
+  });
   document.getElementById("addBodyLogBtn").addEventListener("click", () => openBodyLogModal("add"));
   document.getElementById("closeBodyLogModal").addEventListener("click", closeBodyLogModal);
   document.getElementById("bodyLogModal").addEventListener("click", (e) => {
@@ -1634,6 +1701,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("deleteBodyLogBtn").addEventListener("click", handleDeleteBodyLog);
 
   document.getElementById("exportCsvBtn").addEventListener("click", exportSetsCSV);
+  document.getElementById("exportBodyCsvBtn").addEventListener("click", exportBodyLogsCSV);
   document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
   document.getElementById("backupReminderBtn").addEventListener("click", exportBackup);
   document.getElementById("importBackupInput").addEventListener("change", (e) => {

@@ -525,6 +525,12 @@ button:disabled {
   stroke-width: 2;
 }
 
+.goal-line {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
 .dot-point {
   fill: var(--accent);
 }
@@ -586,6 +592,39 @@ button:disabled {
   visibility: hidden;
 }
 
+.feeling-picker {
+  margin-bottom: 14px;
+}
+
+.feeling-picker-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.feeling-picker-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.feeling-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.feeling-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* Rest timer */
 .rest-timer {
   background: var(--surface-2);
@@ -626,6 +665,30 @@ button:disabled {
 
 .plate-calc-result {
   margin-top: 4px;
+}
+
+.body-goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.body-goal-row label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.body-goal-row input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 16px;
+  text-align: right;
 }
 
 .plate-calc-hint {

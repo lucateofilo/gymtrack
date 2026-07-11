@@ -87,7 +87,7 @@ function renderProgressionChart(points) {
   recordLabel.textContent = `Record: ${formatKg(bestEver)} (1RM stimato)`;
 }
 
-function renderBodyWeightChart(points) {
+function renderBodyWeightChart(points, goal) {
   const svg = document.getElementById("bodyWeightSvg");
   const emptyState = document.getElementById("bodyWeightEmpty");
   const latestLabel = document.getElementById("bodyWeightLatest");
@@ -103,21 +103,25 @@ function renderBodyWeightChart(points) {
   latestLabel.hidden = false;
 
   const W = 300, H = 120, PAD = 10;
-  const maxY = Math.max(...points.map((p) => p.value));
-  const minY = Math.min(...points.map((p) => p.value));
+  const values = points.map((p) => p.value).concat(goal != null ? [goal] : []);
+  const maxY = Math.max(...values);
+  const minY = Math.min(...values);
   const rangeY = maxY - minY || 1;
+  const yOf = (value) => H - PAD - ((value - minY) / rangeY) * (H - PAD * 2);
 
   const coords = points.map((p, i) => {
     const x = points.length === 1 ? W / 2 : PAD + (i / (points.length - 1)) * (W - PAD * 2);
-    const y = H - PAD - ((p.value - minY) / rangeY) * (H - PAD * 2);
-    return { x, y };
+    return { x, y: yOf(p.value) };
   });
 
   const linePoints = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const dots = coords.map((c) => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" class="dot-point"></circle>`).join("");
+  const goalLine = goal != null
+    ? `<line x1="0" y1="${yOf(goal).toFixed(1)}" x2="${W}" y2="${yOf(goal).toFixed(1)}" class="goal-line"></line>`
+    : "";
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  svg.innerHTML = `<polyline points="${linePoints}" class="progression-line"></polyline>${dots}`;
+  svg.innerHTML = `${goalLine}<polyline points="${linePoints}" class="progression-line"></polyline>${dots}`;
 
   const latest = points[points.length - 1].value;
   latestLabel.textContent = `Ultimo: ${formatKg(latest)}`;

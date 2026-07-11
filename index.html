@@ -102,6 +102,11 @@
         <svg id="bodyWeightSvg" class="progression-chart" preserveAspectRatio="none"></svg>
         <p id="bodyWeightEmpty" class="empty-state" hidden>Nessuna voce registrata.</p>
         <p id="bodyWeightLatest" class="period-average" hidden></p>
+        <div class="body-goal-row">
+          <label for="bodyWeightGoalInput">Obiettivo (kg)</label>
+          <input type="number" id="bodyWeightGoalInput" inputmode="decimal" step="0.1" min="0" placeholder="-">
+        </div>
+        <p id="bodyWeightGoalDiff" class="period-average" hidden></p>
       </div>
 
       <div class="chart-card">
@@ -135,7 +140,10 @@
       <div class="chart-card">
         <h2>Esporta dati</h2>
         <p class="export-hint">Scarica tutte le serie in un file CSV, apribile con Excel o Fogli Google.</p>
-        <button type="button" id="exportCsvBtn" class="btn primary">Esporta CSV</button>
+        <div class="backup-actions">
+          <button type="button" id="exportCsvBtn" class="btn primary">Esporta serie</button>
+          <button type="button" id="exportBodyCsvBtn" class="btn secondary">Esporta Corpo</button>
+        </div>
       </div>
 
       <div class="chart-card">
@@ -184,6 +192,15 @@
         Nota (opzionale)
         <input type="text" id="workoutNote" maxlength="60" placeholder="Es. Push day">
       </label>
+
+      <div class="feeling-picker">
+        <span class="feeling-picker-label">Come è andata?</span>
+        <div class="feeling-picker-btns">
+          <button type="button" class="feeling-btn" data-feeling="easy">Facile</button>
+          <button type="button" class="feeling-btn" data-feeling="medium">Media</button>
+          <button type="button" class="feeling-btn" data-feeling="hard">Dura</button>
+        </div>
+      </div>
 
       <div class="rest-timer">
         <div class="rest-timer-display" id="restTimerDisplay">1:30</div>

@@ -3,6 +3,13 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (export CSV Corpo, obiettivo peso, tag difficoltà)
+
+### Aggiunto
+- **Esporta Corpo (CSV)**: peso e misurazioni nel tempo, accanto al bottone di export serie già presente.
+- **Obiettivo peso corporeo**: campo editabile nella card "Peso corporeo", mostra la differenza dall'ultimo peso registrato e una linea di riferimento tratteggiata sul grafico.
+- **Tag difficoltà allenamento**: Facile/Media/Dura nel modale allenamento (tap di nuovo per togliere la selezione), salvato su `workout.feeling` e mostrato nello storico in Home.
+
 ## 2026-07-11 — Feature (promemoria backup, confronto sessioni, superset)
 
 ### Aggiunto

@@ -3,7 +3,7 @@ const MUSCLE_GROUPS = ["Petto", "Schiena", "Gambe", "Spalle", "Braccia", "Core",
 const BODY_MEASUREMENTS = ["vita", "petto", "braccia", "cosce", "fianchi"];
 
 function emptyData() {
-  return { exercises: [], workouts: [], sets: [], routineGroups: [], routines: [], bodyLogs: [] };
+  return { exercises: [], workouts: [], sets: [], routineGroups: [], routines: [], bodyLogs: [], bodyWeightGoal: null };
 }
 
 function loadData() {
@@ -17,6 +17,7 @@ function loadData() {
     if (!Array.isArray(data.routineGroups)) data.routineGroups = [];
     if (!Array.isArray(data.routines)) data.routines = [];
     if (!Array.isArray(data.bodyLogs)) data.bodyLogs = [];
+    if (data.bodyWeightGoal === undefined) data.bodyWeightGoal = null;
     for (const r of data.routines) {
       if (!Array.isArray(r.items)) {
         r.items = Array.isArray(r.exerciseIds)
@@ -96,9 +97,9 @@ const Store = {
     return loadData().workouts;
   },
 
-  addWorkout({ date, note = "", routineId = null }) {
+  addWorkout({ date, note = "", routineId = null, feeling = null }) {
     const data = loadData();
-    const workout = { id: genId(), date, note: note.trim(), routineId };
+    const workout = { id: genId(), date, note: note.trim(), routineId, feeling };
     data.workouts.push(workout);
     saveData(data);
     return workout;
@@ -229,6 +230,16 @@ const Store = {
     saveData(data);
   },
 
+  getBodyWeightGoal() {
+    return loadData().bodyWeightGoal;
+  },
+
+  setBodyWeightGoal(weight) {
+    const data = loadData();
+    data.bodyWeightGoal = weight;
+    saveData(data);
+  },
+
   exportAll() {
     return loadData();
   },
@@ -242,6 +253,7 @@ const Store = {
       routineGroups: Array.isArray(data.routineGroups) ? data.routineGroups : [],
       routines: Array.isArray(data.routines) ? data.routines : [],
       bodyLogs: Array.isArray(data.bodyLogs) ? data.bodyLogs : [],
+      bodyWeightGoal: typeof data.bodyWeightGoal === "number" ? data.bodyWeightGoal : null,
     });
     return true;
   },
