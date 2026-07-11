@@ -3,6 +3,11 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Modificato (icona v3)
+
+### Modificato
+- L'icona precedente (dischi come anelli/"ciambelle" arancioni) non si leggeva bene come bilanciere. Rifatta con dischi pieni (pillole verticali) invece di anelli forati, bianco su sfondo nero invece di arancione su navy.
+
 ## 2026-07-11 — Feature (schermata sessione dedicata)
 
 ### Aggiunto
