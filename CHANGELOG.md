@@ -3,6 +3,11 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (tempo stimato serie)
+
+### Aggiunto
+- **Tempo stimato serie**: quando il riposo viene interrotto (manualmente col toggle o a scadenza naturale) parte un cronometro "Serie in corso" che misura il tempo fino al log della serie successiva. Il valore aggiorna una media mobile pesata per esercizio (`avgSetSeconds`, 70% peso al valore precedente/30% all'ultima misura) mostrata come riferimento ("· media m:ss") accanto al cronometro dal ciclo successivo. Cambiare solo il preset del riposo (senza interromperlo) non fa partire il cronometro. Misure fuori dai limiti 1–600s vengono scartate.
+
 ## 2026-07-11 — Modificato (icona app)
 
 ### Modificato

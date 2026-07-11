@@ -8,6 +8,8 @@ let editingExerciseId = null;
 let statsExerciseId = "";
 let restTimerInterval = null;
 let restTimerRemaining = 90;
+let restStoppedAt = null;
+let setStopwatchInterval = null;
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -319,6 +321,7 @@ function handleAddSet() {
   const prevBest = exerciseBestE1RM(exerciseId);
   const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight, reps, rir });
   const isPR = estimate1RM(set.weight, set.reps) > prevBest;
+  clearSetStopwatch(true, exerciseId);
 
   document.getElementById("setWeight").value = "";
   document.getElementById("setReps").value = "";
@@ -333,6 +336,7 @@ function handleAddSet() {
 
 function openWorkoutModal(mode, workout) {
   const modal = document.getElementById("workoutModal");
+  clearSetStopwatch(false);
   setRestTimer(90);
 
   document.getElementById("workoutNote").value = "";
@@ -360,6 +364,7 @@ function openWorkoutModal(mode, workout) {
 
 function closeWorkoutModal() {
   stopRestTimer();
+  clearSetStopwatch(false);
   if (currentWorkoutId && Store.getSetsForWorkout(currentWorkoutId).length === 0) {
     Store.deleteWorkout(currentWorkoutId);
   }
@@ -390,6 +395,7 @@ function setRestTimer(seconds) {
 }
 
 function startRestTimer() {
+  clearSetStopwatch(false);
   if (restTimerRemaining <= 0) restTimerRemaining = 90;
   document.getElementById("restTimerToggle").textContent = "Pausa";
   restTimerInterval = setInterval(() => {
@@ -397,6 +403,7 @@ function startRestTimer() {
     document.getElementById("restTimerDisplay").textContent = formatTimer(Math.max(0, restTimerRemaining));
     if (restTimerRemaining <= 0) {
       stopRestTimer();
+      startSetStopwatch();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       toast("Riposo terminato");
     }
@@ -407,6 +414,42 @@ function stopRestTimer() {
   clearInterval(restTimerInterval);
   restTimerInterval = null;
   document.getElementById("restTimerToggle").textContent = "Avvia";
+}
+
+function startSetStopwatch() {
+  restStoppedAt = Date.now();
+  updateSetStopwatchDisplay();
+  clearInterval(setStopwatchInterval);
+  setStopwatchInterval = setInterval(updateSetStopwatchDisplay, 1000);
+}
+
+function updateSetStopwatchDisplay() {
+  const el = document.getElementById("setStopwatch");
+  if (!restStoppedAt) {
+    el.hidden = true;
+    return;
+  }
+  const elapsed = Math.round((Date.now() - restStoppedAt) / 1000);
+  const exerciseId = document.getElementById("setExerciseSelect").value;
+  const exercise = exerciseId && exerciseId !== "__new__" ? Store.getExerciseById(exerciseId) : null;
+  const estimate = exercise && exercise.avgSetSeconds != null
+    ? ` · media ${formatTimer(Math.round(exercise.avgSetSeconds))}`
+    : "";
+  el.hidden = false;
+  el.textContent = `Serie in corso: ${formatTimer(elapsed)}${estimate}`;
+}
+
+// ponytail: naive [1s, 600s] sanity window discards bogus samples (app left open, etc.);
+// a per-exercise outlier filter would be more robust if bad samples show up in practice.
+function clearSetStopwatch(record, exerciseId) {
+  if (record && restStoppedAt) {
+    const elapsed = (Date.now() - restStoppedAt) / 1000;
+    if (elapsed >= 1 && elapsed <= 600) Store.recordSetDuration(exerciseId, elapsed);
+  }
+  restStoppedAt = null;
+  clearInterval(setStopwatchInterval);
+  setStopwatchInterval = null;
+  document.getElementById("setStopwatch").hidden = true;
 }
 
 function renderExerciseManager() {
@@ -675,8 +718,12 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => setRestTimer(Number(btn.dataset.seconds)));
   });
   document.getElementById("restTimerToggle").addEventListener("click", () => {
-    if (restTimerInterval) stopRestTimer();
-    else startRestTimer();
+    if (restTimerInterval) {
+      stopRestTimer();
+      startSetStopwatch();
+    } else {
+      startRestTimer();
+    }
   });
 
   document.getElementById("addExerciseBtn").addEventListener("click", () => {

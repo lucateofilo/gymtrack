@@ -65,6 +65,16 @@ const Store = {
     return { ok: true };
   },
 
+  recordSetDuration(exerciseId, seconds) {
+    const data = loadData();
+    const exercise = data.exercises.find((e) => e.id === exerciseId);
+    if (!exercise) return;
+    exercise.avgSetSeconds = exercise.avgSetSeconds == null
+      ? seconds
+      : exercise.avgSetSeconds * 0.7 + seconds * 0.3;
+    saveData(data);
+  },
+
   getExerciseById(id) {
     return loadData().exercises.find((e) => e.id === id) || null;
   },
