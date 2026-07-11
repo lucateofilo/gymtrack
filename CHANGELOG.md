@@ -3,6 +3,17 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (schermata sessione dedicata)
+
+### Aggiunto
+- **Sessione a schermo intero**: il FAB non apre più un modale a foglio ma una vera schermata dedicata (`#sessionScreen`), con timer di riposo e stima serie sempre visibili in alto (indipendenti dall'esercizio corrente, dato che il riposo non è legato a una singola card).
+- **Card per esercizio con paginazione**: ogni esercizio della sessione è una pagina navigabile con frecce ‹ › o toccando i pallini; l'ultima pagina è sempre un "+" per aggiungere il prossimo esercizio (creazione al volo come già in Gestione). Le pagine si costruiscono progressivamente, nessuna scheda/routine da pianificare prima.
+- **Stepper +/− per peso, reps e RIR**: sostituiscono i campi numerici; i valori restano impostati tra una serie e l'altra (utile per ripetere rapidamente la stessa serie) e vengono pre-caricati dall'ultima serie registrata per quell'esercizio in questo allenamento (default 20kg × 8 se è la prima).
+- Riaprire un allenamento passato ricostruisce le pagine dagli esercizi già presenti nelle sue serie, in ordine di primo utilizzo.
+
+### Modificato
+- Rimossi il vecchio modale `#workoutModal`, il form piatto "Peso/Reps/RIR" e le relative funzioni; la lista serie ora è filtrata per esercizio (una per pagina) invece che per l'intero allenamento.
+
 ## 2026-07-11 — Feature (tempo stimato serie)
 
 ### Aggiunto

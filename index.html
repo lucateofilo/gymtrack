@@ -122,77 +122,35 @@
   <button id="fab" class="fab" aria-label="Nuovo allenamento">+</button>
 </div>
 
-<div id="workoutModal" class="modal" hidden>
+<div id="sessionScreen" class="modal fullscreen" hidden>
   <div class="modal-content">
-    <div class="modal-header">
-      <h2 id="workoutModalTitle">Nuovo allenamento</h2>
-      <button id="closeWorkoutModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    <div class="session-topbar">
+      <button id="closeSessionBtn" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+      <input type="date" id="workoutDate" class="session-date">
+      <input type="text" id="workoutNote" maxlength="60" placeholder="Nota (es. Push day)" class="session-note">
+      <button type="button" id="doneWorkoutBtn" class="btn primary session-done">Fine</button>
     </div>
 
-    <div class="modal-form">
-      <label>
-        Data
-        <input type="date" id="workoutDate">
-      </label>
-      <label>
-        Nota (opzionale)
-        <input type="text" id="workoutNote" maxlength="60" placeholder="Es. Push day">
-      </label>
-
-      <div class="rest-timer">
-        <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
-        <div class="rest-timer-actions">
-          <button type="button" class="btn secondary rest-preset" data-seconds="60">60s</button>
-          <button type="button" class="btn secondary rest-preset" data-seconds="90">90s</button>
-          <button type="button" class="btn secondary rest-preset" data-seconds="120">120s</button>
-          <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
-        </div>
-      </div>
-      <p id="setStopwatch" class="period-average" hidden></p>
-
-      <h3>Serie</h3>
-      <ul id="setsList" class="movements-list sets-list"></ul>
-      <p id="setsEmpty" class="empty-state" hidden>Nessuna serie aggiunta.</p>
-
-      <div class="add-set-form">
-        <label>
-          Esercizio
-          <select id="setExerciseSelect">
-            <option value="__new__">+ Nuovo esercizio</option>
-          </select>
-        </label>
-        <div id="newExerciseFields" class="new-category-fields" hidden>
-          <label>
-            Nome
-            <input type="text" id="newExerciseName" maxlength="30" placeholder="Es. Panca piana">
-          </label>
-          <label>
-            Gruppo
-            <select id="newExerciseGroup"></select>
-          </label>
-        </div>
-        <div class="field-row">
-          <label>
-            Peso (kg)
-            <input type="number" id="setWeight" inputmode="decimal" step="0.5" min="0" placeholder="0">
-          </label>
-          <label>
-            Reps
-            <input type="number" id="setReps" inputmode="numeric" step="1" min="0" placeholder="0">
-          </label>
-          <label>
-            RIR
-            <input type="number" id="setRir" inputmode="numeric" step="1" min="0" max="10" placeholder="-">
-          </label>
-        </div>
-        <button type="button" id="addSetBtn" class="btn primary">Aggiungi serie</button>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" id="deleteWorkoutBtn" class="btn danger" hidden>Elimina allenamento</button>
-        <button type="button" id="doneWorkoutBtn" class="btn primary">Fatto</button>
+    <div class="rest-timer">
+      <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
+      <div class="rest-timer-actions">
+        <button type="button" class="btn secondary rest-preset" data-seconds="60">60s</button>
+        <button type="button" class="btn secondary rest-preset" data-seconds="90">90s</button>
+        <button type="button" class="btn secondary rest-preset" data-seconds="120">120s</button>
+        <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
       </div>
     </div>
+    <p id="setStopwatch" class="period-average" hidden></p>
+
+    <div class="session-pager-nav">
+      <button type="button" id="pagerPrev" class="icon-btn" aria-label="Esercizio precedente">&#8249;</button>
+      <div id="pagerDots" class="pager-dots"></div>
+      <button type="button" id="pagerNext" class="icon-btn" aria-label="Esercizio successivo">&#8250;</button>
+    </div>
+
+    <div id="sessionPageContent" class="session-page"></div>
+
+    <button type="button" id="deleteWorkoutBtn" class="btn danger session-delete" hidden>Elimina allenamento</button>
   </div>
 </div>
 
