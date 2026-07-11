@@ -599,9 +599,119 @@ main {
   margin: 12px 0;
 }
 
-.sets-list {
-  max-height: 240px;
-  overflow-y: auto;
+/* Exercise blocks (set rows with checkmark, Hevy-style) */
+.exercise-block {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.exercise-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.exercise-block-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 18px 34px 1fr 1fr 1fr 32px;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.set-row-header {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.set-row-header span:first-child,
+.set-row-header span:nth-child(2) {
+  text-align: left;
+}
+
+.set-index {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.set-prev {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 16px;
+  text-align: center;
+}
+
+.set-row.completed .set-input {
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.set-check {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.set-check svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.set-check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.add-set-row-btn {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.exercise-remove-btn:disabled {
+  opacity: 0.3;
 }
 
 /* Toast */

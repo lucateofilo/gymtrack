@@ -3,6 +3,18 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (log serie in stile Hevy: righe con spunta)
+
+### Aggiunto
+- **Righe serie pre-create con spunta**, ispirate a Hevy: il vecchio form unico "Esercizio + Peso/Reps/RIR + Aggiungi serie" è sostituito da card impilate per esercizio (ancora dentro lo stesso modale a foglio, non schermo intero) con una riga per serie. Avviando una scheda, ogni esercizio parte già con tante righe vuote quante il target di serie definito; loggando ad-hoc, parte con una riga e "+ Serie" ne aggiunge altre.
+- **Riferimento "precedente"**: ogni riga mostra peso×reps dell'ultima volta che hai fatto quell'esercizio (sessione più recente diversa da quella in corso), come promemoria per il progressive overload.
+- **Timer di riposo automatico**: spuntare una riga la registra e fa partire subito il timer di riposo con la durata dell'esercizio appena completato (`activeRestExerciseId`), senza dover premere Avvia a parte. Togliere la spunta a una serie già registrata la cancella e la riporta modificabile come bozza.
+- Modificare peso/reps/RIR di una serie già spuntata li salva subito (nuovo `Store.updateSet`).
+
+### Modificato
+- Il cronometro "Serie in corso" ora si ferma anche quando un allenamento vuoto viene scartato in chiusura (non solo a eliminazione esplicita): evita che un timer rimasto acceso su una sessione abbandonata condizioni la durata quando se ne avvia una diversa più tardi.
+- Bump `CACHE_NAME` a `gymtrack-v5`.
+
 ## 2026-07-11 — Feature (target serie/reps/RIR nelle schede) + icone SVG
 
 ### Aggiunto

@@ -139,6 +139,13 @@ const Store = {
     return set;
   },
 
+  updateSet(id, changes) {
+    const data = loadData();
+    const set = updateEntity(data.sets, id, changes);
+    if (set) saveData(data);
+    return set;
+  },
+
   deleteSet(id) {
     const data = loadData();
     data.sets = data.sets.filter((s) => s.id !== id);

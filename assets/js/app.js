@@ -5,6 +5,7 @@ const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 const ICON_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M17 4H7v6a5 5 0 0 0 10 0V4Z"></path><path d="M5 4H3v2a4 4 0 0 0 4 4"></path><path d="M19 4h2v2a4 4 0 0 1-4 4"></path></svg>';
 const ICON_FLAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 const PR_BADGE_HTML = `<span class="pr-badge" title="Record personale">${ICON_TROPHY}</span>`;
 
 let periodType = "week";
@@ -19,6 +20,9 @@ let restStoppedAt = null;
 let setStopwatchInterval = null;
 let startingRoutineId = null;
 let editingRoutineId = null;
+let sessionExerciseIds = []; // ordered exerciseIds shown as blocks in the current workout modal session
+let pendingRowsByExercise = new Map(); // exerciseId -> [{weight, reps, rir}] draft rows not yet logged
+let activeRestExerciseId = null; // exercise the rest timer duration/estimate currently follows
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -293,11 +297,11 @@ function fillMuscleGroupOptions(select) {
   }
 }
 
-function populateExerciseSelect(selectedId) {
+function populateExerciseSelect() {
   const select = document.getElementById("setExerciseSelect");
-  const exercises = Store.getExercises();
+  const available = Store.getExercises().filter((e) => !sessionExerciseIds.includes(e.id));
   select.innerHTML = "";
-  for (const ex of exercises) {
+  for (const ex of available) {
     const opt = document.createElement("option");
     opt.value = ex.id;
     opt.textContent = ex.name;
@@ -308,9 +312,7 @@ function populateExerciseSelect(selectedId) {
   newOpt.textContent = "+ Nuovo esercizio";
   select.appendChild(newOpt);
 
-  select.value = selectedId && exercises.some((e) => e.id === selectedId)
-    ? selectedId
-    : exercises[0] ? exercises[0].id : "__new__";
+  select.value = available[0] ? available[0].id : "__new__";
   toggleNewExerciseFields();
 }
 
@@ -319,56 +321,140 @@ function toggleNewExerciseFields() {
   document.getElementById("newExerciseFields").hidden = select.value !== "__new__";
 }
 
-function renderSetsList(workoutId) {
-  const list = document.getElementById("setsList");
-  const emptyState = document.getElementById("setsEmpty");
-  list.innerHTML = "";
+// Most recent PAST workout (not the one being edited) that has sets for this exercise,
+// used as the "previous" reference shown next to each set row.
+function getPreviousSets(exerciseId) {
+  const workouts = [...Store.getWorkouts()]
+    .filter((w) => w.id !== currentWorkoutId)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  for (const w of workouts) {
+    const sets = Store.getSetsForWorkout(w.id).filter((s) => s.exerciseId === exerciseId);
+    if (sets.length > 0) return sets;
+  }
+  return [];
+}
 
-  const sets = workoutId ? Store.getSetsForWorkout(workoutId) : [];
-  if (sets.length === 0) {
+// Guarantees at least one empty draft row is ready to fill in, seeded from the last
+// completed set this session or, failing that, from the previous workout's first set.
+function ensurePendingRows(exerciseId) {
+  let rows = pendingRowsByExercise.get(exerciseId);
+  if (!rows) {
+    rows = [];
+    pendingRowsByExercise.set(exerciseId, rows);
+  }
+  if (rows.length === 0) {
+    const completed = currentWorkoutId ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId) : [];
+    const seed = completed[completed.length - 1] || getPreviousSets(exerciseId)[0] || {};
+    rows.push({ weight: seed.weight ?? null, reps: seed.reps ?? null, rir: seed.rir ?? null });
+  }
+  return rows;
+}
+
+function setRowHtml({ index, completed, exerciseId, setId, pendingIndex, weight, reps, rir, prevRef, isPR }) {
+  const rowClass = "set-row" + (completed ? " completed" : "");
+  const rowAttrs = completed
+    ? `data-set-id="${setId}" data-exercise-id="${exerciseId}"`
+    : `data-pending-index="${pendingIndex}" data-exercise-id="${exerciseId}"`;
+  return `
+    <div class="${rowClass}" ${rowAttrs}>
+      <span class="set-index">${index + 1}${isPR ? " " + PR_BADGE_HTML : ""}</span>
+      <span class="set-prev">${prevRef}</span>
+      <input type="number" class="set-input set-field-weight" inputmode="decimal" step="0.5" min="0" placeholder="0" value="${weight != null ? weight : ""}">
+      <input type="number" class="set-input set-field-reps" inputmode="numeric" step="1" min="0" placeholder="0" value="${reps != null ? reps : ""}">
+      <input type="number" class="set-input set-field-rir" inputmode="numeric" step="1" min="0" max="10" placeholder="-" value="${rir != null ? rir : ""}">
+      <button type="button" class="set-check${completed ? " checked" : ""}" aria-label="${completed ? "Segna come non completata" : "Segna come completata"}">${ICON_CHECK}</button>
+    </div>
+  `;
+}
+
+function renderExerciseBlockHtml(exerciseId) {
+  const exercise = Store.getExerciseById(exerciseId);
+  const completedSets = currentWorkoutId ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId) : [];
+  const pendingRows = ensurePendingRows(exerciseId);
+  const prevSets = getPreviousSets(exerciseId);
+  const prIds = new Set(getPRSetIds(exerciseId));
+
+  let rowsHtml = "";
+  let rowIndex = 0;
+  for (const s of completedSets) {
+    const prevRef = prevSets[rowIndex] ? `${prevSets[rowIndex].weight}×${prevSets[rowIndex].reps}` : "–";
+    rowsHtml += setRowHtml({ index: rowIndex, completed: true, exerciseId, setId: s.id, weight: s.weight, reps: s.reps, rir: s.rir, prevRef, isPR: prIds.has(s.id) });
+    rowIndex++;
+  }
+  pendingRows.forEach((row, pendingIndex) => {
+    const prevRef = prevSets[rowIndex] ? `${prevSets[rowIndex].weight}×${prevSets[rowIndex].reps}` : "–";
+    rowsHtml += setRowHtml({ index: rowIndex, completed: false, exerciseId, pendingIndex, weight: row.weight, reps: row.reps, rir: row.rir, prevRef });
+    rowIndex++;
+  });
+
+  const canRemove = completedSets.length === 0;
+  return `
+    <div class="exercise-block" data-exercise-id="${exerciseId}">
+      <div class="exercise-block-header">
+        <h3>${exercise ? exercise.name : "Esercizio eliminato"}</h3>
+        <button type="button" class="icon-btn exercise-remove-btn" data-exercise-id="${exerciseId}" ${canRemove ? "" : "disabled"} title="${canRemove ? "Rimuovi esercizio" : "Non rimovibile: ha serie registrate"}" aria-label="Rimuovi esercizio">${ICON_TRASH}</button>
+      </div>
+      <div class="set-row set-row-header">
+        <span>#</span><span>Prec.</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span>
+      </div>
+      ${rowsHtml}
+      <button type="button" class="add-set-row-btn" data-exercise-id="${exerciseId}">+ Serie</button>
+    </div>
+  `;
+}
+
+function renderExerciseBlocks() {
+  const container = document.getElementById("exerciseBlocks");
+  const emptyState = document.getElementById("exerciseBlocksEmpty");
+  container.innerHTML = "";
+
+  if (sessionExerciseIds.length === 0) {
     emptyState.hidden = false;
     return;
   }
   emptyState.hidden = true;
 
-  const prIds = new Set();
-  for (const ex of Store.getExercises()) {
-    for (const id of getPRSetIds(ex.id)) prIds.add(id);
-  }
+  container.innerHTML = sessionExerciseIds.map(renderExerciseBlockHtml).join("");
+}
 
-  for (const s of sets) {
-    const exercise = Store.getExerciseById(s.exerciseId);
-    const li = document.createElement("li");
-    li.className = "movement-item";
-    li.innerHTML = `
-      <div class="info">
-        <div class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}${prIds.has(s.id) ? " " + PR_BADGE_HTML : ""}</div>
-        <div class="note">${s.weight} kg × ${s.reps}${s.rir != null ? " · RIR " + s.rir : ""}</div>
-      </div>
-      <button type="button" class="icon-btn set-delete" data-set-id="${s.id}" aria-label="Elimina serie">&#10005;</button>
-    `;
-    list.appendChild(li);
+function handleSetFieldChange(row, field, value) {
+  const exerciseId = row.dataset.exerciseId;
+  if (row.dataset.setId) {
+    const changes = {};
+    if (field === "weight") changes.weight = Math.abs(Number(value)) || 0;
+    else if (field === "reps") changes.reps = Math.max(0, Math.round(Number(value)) || 0);
+    else changes.rir = value === "" ? null : Number(value);
+    Store.updateSet(row.dataset.setId, changes);
+  } else {
+    const rows = pendingRowsByExercise.get(exerciseId);
+    const idx = Number(row.dataset.pendingIndex);
+    if (rows && rows[idx]) rows[idx][field] = value === "" ? null : Number(value);
   }
 }
 
-function handleAddSet() {
-  let exerciseId = document.getElementById("setExerciseSelect").value;
-  const weight = document.getElementById("setWeight").value;
-  const reps = document.getElementById("setReps").value;
-  const rir = document.getElementById("setRir").value;
+function handleSetCheckClick(row) {
+  const exerciseId = row.dataset.exerciseId;
 
-  if (exerciseId === "__new__") {
-    const name = document.getElementById("newExerciseName").value.trim();
-    const group = document.getElementById("newExerciseGroup").value;
-    if (!name) {
-      document.getElementById("newExerciseName").focus();
-      return;
+  if (row.dataset.setId) {
+    // Completed -> uncheck: delete the set, bring its values back as an editable draft row.
+    const set = Store.getSets().find((s) => s.id === row.dataset.setId);
+    Store.deleteSet(row.dataset.setId);
+    if (set) {
+      const rows = pendingRowsByExercise.get(exerciseId) || [];
+      rows.push({ weight: set.weight, reps: set.reps, rir: set.rir });
+      pendingRowsByExercise.set(exerciseId, rows);
     }
-    exerciseId = Store.addExercise(name, group).id;
+    renderExerciseBlocks();
+    return;
   }
 
-  if (!reps || Number(reps) <= 0) {
-    document.getElementById("setReps").focus();
+  const weight = Number(row.querySelector(".set-field-weight").value) || 0;
+  const reps = Number(row.querySelector(".set-field-reps").value) || 0;
+  const rirRaw = row.querySelector(".set-field-rir").value;
+  const rir = rirRaw === "" ? null : Number(rirRaw);
+
+  if (reps <= 0) {
+    row.querySelector(".set-field-reps").focus();
     return;
   }
 
@@ -383,17 +469,58 @@ function handleAddSet() {
   const prevBest = exerciseBestE1RM(exerciseId);
   const set = Store.addSet({ workoutId: currentWorkoutId, exerciseId, weight, reps, rir });
   const isPR = estimate1RM(set.weight, set.reps) > prevBest;
+
+  const rows = pendingRowsByExercise.get(exerciseId);
+  if (rows) rows.splice(Number(row.dataset.pendingIndex), 1);
   clearSetStopwatch(true, exerciseId);
 
-  document.getElementById("setWeight").value = "";
-  document.getElementById("setReps").value = "";
-  document.getElementById("setRir").value = "";
-  populateExerciseSelect(exerciseId);
-  document.getElementById("newExerciseName").value = "";
-  renderSetsList(currentWorkoutId);
+  // Rest timer auto-starts on completion, following this exercise's configured rest time.
+  activeRestExerciseId = exerciseId;
+  resetRestTimer();
+  startRestTimer();
+
   document.getElementById("deleteWorkoutBtn").hidden = false;
+  renderExerciseBlocks();
 
   if (isPR) toast(`${ICON_TROPHY} Nuovo record personale!`);
+}
+
+function handleAddSetRowClick(exerciseId) {
+  const rows = ensurePendingRows(exerciseId);
+  const last = rows[rows.length - 1];
+  rows.push({ weight: last.weight, reps: last.reps, rir: last.rir });
+  renderExerciseBlocks();
+}
+
+function handleRemoveExerciseBlock(exerciseId) {
+  const completed = currentWorkoutId ? Store.getSetsForWorkout(currentWorkoutId).filter((s) => s.exerciseId === exerciseId) : [];
+  if (completed.length > 0) return;
+  sessionExerciseIds = sessionExerciseIds.filter((id) => id !== exerciseId);
+  pendingRowsByExercise.delete(exerciseId);
+  if (activeRestExerciseId === exerciseId) activeRestExerciseId = sessionExerciseIds[0] || null;
+  populateExerciseSelect();
+  renderExerciseBlocks();
+}
+
+function handleAddExerciseToWorkout() {
+  let exerciseId = document.getElementById("setExerciseSelect").value;
+
+  if (exerciseId === "__new__") {
+    const name = document.getElementById("newExerciseName").value.trim();
+    const group = document.getElementById("newExerciseGroup").value;
+    if (!name) {
+      document.getElementById("newExerciseName").focus();
+      return;
+    }
+    exerciseId = Store.addExercise(name, group).id;
+  }
+
+  if (!sessionExerciseIds.includes(exerciseId)) sessionExerciseIds.push(exerciseId);
+  if (!activeRestExerciseId) activeRestExerciseId = exerciseId;
+
+  document.getElementById("newExerciseName").value = "";
+  populateExerciseSelect();
+  renderExerciseBlocks();
 }
 
 function openWorkoutModal(mode, workout, routineId) {
@@ -401,9 +528,7 @@ function openWorkoutModal(mode, workout, routineId) {
 
   document.getElementById("workoutNote").value = "";
   document.getElementById("workoutDate").value = toISODate(new Date());
-  document.getElementById("setWeight").value = "";
-  document.getElementById("setReps").value = "";
-  document.getElementById("setRir").value = "";
+  pendingRowsByExercise = new Map();
 
   let routine = null;
   if (mode === "edit") {
@@ -413,17 +538,34 @@ function openWorkoutModal(mode, workout, routineId) {
     document.getElementById("workoutDate").value = workout.date;
     document.getElementById("workoutNote").value = workout.note || "";
     document.getElementById("deleteWorkoutBtn").hidden = false;
-    populateExerciseSelect(null);
+
+    const seen = new Set();
+    sessionExerciseIds = [];
+    for (const s of Store.getSetsForWorkout(workout.id)) {
+      if (!seen.has(s.exerciseId)) {
+        seen.add(s.exerciseId);
+        sessionExerciseIds.push(s.exerciseId);
+      }
+    }
   } else {
     currentWorkoutId = null;
     startingRoutineId = routineId || null;
     routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
     document.getElementById("deleteWorkoutBtn").hidden = true;
-    const firstItem = routine && routine.items[0] ? routine.items[0] : null;
-    populateExerciseSelect(firstItem ? firstItem.exerciseId : null);
-    if (firstItem) document.getElementById("setReps").value = firstItem.reps;
+
+    if (routine) {
+      sessionExerciseIds = routine.items.map((it) => it.exerciseId);
+      for (const item of routine.items) {
+        pendingRowsByExercise.set(item.exerciseId, Array.from({ length: item.sets }, () => ({ weight: null, reps: item.reps, rir: item.rir })));
+      }
+    } else {
+      sessionExerciseIds = [];
+    }
   }
   document.getElementById("workoutModalTitle").textContent = routine ? routine.name : (mode === "edit" ? "Modifica allenamento" : "Nuovo allenamento");
+
+  activeRestExerciseId = sessionExerciseIds[0] || null;
+  populateExerciseSelect();
 
   // Don't reset an already-running rest timer / set stopwatch: closing the modal
   // (to peek at Stats, answer a call, etc.) must not interrupt an in-progress rest.
@@ -431,18 +573,24 @@ function openWorkoutModal(mode, workout, routineId) {
     resetRestTimer();
   }
 
-  renderSetsList(currentWorkoutId);
+  renderExerciseBlocks();
   modal.hidden = false;
 }
 
 function closeWorkoutModal() {
-  // Rest timer / set stopwatch keep running in the background on purpose (see openWorkoutModal).
+  // Rest timer / set stopwatch keep running in the background on purpose (see openWorkoutModal) —
+  // but only for a workout that actually has data. If it's abandoned empty (deleted below), any
+  // timer tied to it is stale too: stop it so it doesn't bleed into an unrelated session later.
   if (currentWorkoutId && Store.getSetsForWorkout(currentWorkoutId).length === 0) {
     Store.deleteWorkout(currentWorkoutId);
+    stopRestTimer();
+    clearSetStopwatch(false);
   }
   document.getElementById("workoutModal").hidden = true;
   currentWorkoutId = null;
   startingRoutineId = null;
+  sessionExerciseIds = [];
+  pendingRowsByExercise = new Map();
   renderAll();
 }
 
@@ -451,6 +599,8 @@ function handleDeleteWorkout() {
   Store.deleteWorkout(currentWorkoutId);
   currentWorkoutId = null;
   startingRoutineId = null;
+  sessionExerciseIds = [];
+  pendingRowsByExercise = new Map();
   stopRestTimer();
   clearSetStopwatch(false);
   document.getElementById("workoutModal").hidden = true;
@@ -476,13 +626,12 @@ function updateRestTimerDisplay() {
   else btn.textContent = "Avvia";
 }
 
-// Resets to the currently selected exercise's configured rest time, stopped and ready.
-// Used on modal open, on natural expiry, on Azzera, and (guarded) when switching exercise while idle.
+// Resets to activeRestExerciseId's configured rest time, stopped and ready.
+// Used on modal open, on natural expiry, on Azzera, and when a set is checked off.
 function resetRestTimer() {
   clearInterval(restTimerInterval);
   restTimerInterval = null;
-  const exerciseId = document.getElementById("setExerciseSelect")?.value;
-  if (exerciseId && exerciseId !== "__new__") restTimerDuration = getExerciseRest(exerciseId);
+  restTimerDuration = getExerciseRest(activeRestExerciseId);
   restTimerRemaining = restTimerDuration;
   updateRestTimerDisplay();
 }
@@ -523,8 +672,7 @@ function updateSetStopwatchDisplay() {
     return;
   }
   const elapsed = Math.round((Date.now() - restStoppedAt) / 1000);
-  const exerciseId = document.getElementById("setExerciseSelect").value;
-  const exercise = exerciseId && exerciseId !== "__new__" ? Store.getExerciseById(exerciseId) : null;
+  const exercise = activeRestExerciseId ? Store.getExerciseById(activeRestExerciseId) : null;
   const estimate = exercise && exercise.avgSetSeconds != null
     ? ` · media ${formatTimer(Math.round(exercise.avgSetSeconds))}`
     : "";
@@ -1035,19 +1183,31 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { note: e.target.value });
   });
 
-  document.getElementById("setExerciseSelect").addEventListener("change", () => {
-    toggleNewExerciseFields();
-    // Only resync the ready-to-start duration when idle/fresh; don't disrupt a running or paused rest.
-    if (!restTimerInterval && restTimerRemaining === restTimerDuration) {
-      resetRestTimer();
+  document.getElementById("setExerciseSelect").addEventListener("change", toggleNewExerciseFields);
+  document.getElementById("addExerciseToWorkoutBtn").addEventListener("click", handleAddExerciseToWorkout);
+  document.getElementById("exerciseBlocks").addEventListener("click", (e) => {
+    const checkBtn = e.target.closest(".set-check");
+    if (checkBtn) {
+      handleSetCheckClick(checkBtn.closest(".set-row"));
+      return;
+    }
+    const addRowBtn = e.target.closest(".add-set-row-btn");
+    if (addRowBtn) {
+      handleAddSetRowClick(addRowBtn.dataset.exerciseId);
+      return;
+    }
+    const removeBtn = e.target.closest(".exercise-remove-btn");
+    if (removeBtn && !removeBtn.disabled) {
+      handleRemoveExerciseBlock(removeBtn.dataset.exerciseId);
     }
   });
-  document.getElementById("addSetBtn").addEventListener("click", handleAddSet);
-  document.getElementById("setsList").addEventListener("click", (e) => {
-    const btn = e.target.closest(".set-delete");
-    if (!btn) return;
-    Store.deleteSet(btn.dataset.setId);
-    renderSetsList(currentWorkoutId);
+  document.getElementById("exerciseBlocks").addEventListener("change", (e) => {
+    const input = e.target.closest(".set-input");
+    if (!input) return;
+    const field = input.classList.contains("set-field-weight") ? "weight"
+      : input.classList.contains("set-field-reps") ? "reps"
+      : "rir";
+    handleSetFieldChange(input.closest(".set-row"), field, input.value);
   });
 
   document.getElementById("restTimerToggle").addEventListener("click", () => {

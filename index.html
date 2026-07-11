@@ -168,9 +168,8 @@
       </div>
       <p id="setStopwatch" class="period-average" hidden></p>
 
-      <h3>Serie</h3>
-      <ul id="setsList" class="movements-list sets-list"></ul>
-      <p id="setsEmpty" class="empty-state" hidden>Nessuna serie aggiunta.</p>
+      <div id="exerciseBlocks"></div>
+      <p id="exerciseBlocksEmpty" class="empty-state" hidden>Nessun esercizio in questo allenamento.<br>Aggiungine uno qui sotto.</p>
 
       <div class="add-set-form">
         <label>
@@ -189,21 +188,7 @@
             <select id="newExerciseGroup"></select>
           </label>
         </div>
-        <div class="field-row">
-          <label>
-            Peso (kg)
-            <input type="number" id="setWeight" inputmode="decimal" step="0.5" min="0" placeholder="0">
-          </label>
-          <label>
-            Reps
-            <input type="number" id="setReps" inputmode="numeric" step="1" min="0" placeholder="0">
-          </label>
-          <label>
-            RIR
-            <input type="number" id="setRir" inputmode="numeric" step="1" min="0" max="10" placeholder="-">
-          </label>
-        </div>
-        <button type="button" id="addSetBtn" class="btn primary">Aggiungi serie</button>
+        <button type="button" id="addExerciseToWorkoutBtn" class="btn secondary">+ Aggiungi esercizio</button>
       </div>
 
       <div class="modal-actions">
