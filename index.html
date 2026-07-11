@@ -31,6 +31,15 @@
 
   <main>
     <section id="view-home" class="view active">
+      <div class="chart-card">
+        <div class="totals-header">
+          <h2>Le tue schede</h2>
+          <button type="button" id="addRoutineBtn" class="icon-btn" aria-label="Nuova scheda">+</button>
+        </div>
+        <div id="routinesSection"></div>
+        <p id="routinesEmpty" class="empty-state" hidden>Nessuna scheda creata.<br>Tocca + per crearne una.</p>
+      </div>
+
       <div class="totals-row">
         <div class="total-card">
           <span class="label">Allenamenti</span>
@@ -47,8 +56,11 @@
       </div>
       <p id="streakChip" class="period-average"></p>
 
-      <ul id="workoutsList" class="movements-list"></ul>
-      <p id="emptyState" class="empty-state" hidden>Nessun allenamento in questo periodo.<br>Tocca + per iniziarne uno.</p>
+      <div class="chart-card">
+        <h2>Storico allenamenti</h2>
+        <ul id="workoutsList" class="movements-list"></ul>
+        <p id="emptyState" class="empty-state" hidden>Nessun allenamento in questo periodo.<br>Tocca + per iniziarne uno.</p>
+      </div>
     </section>
 
     <section id="view-stats" class="view">
@@ -80,6 +92,14 @@
     </section>
 
     <section id="view-manage" class="view">
+      <div class="chart-card">
+        <div class="totals-header">
+          <h2>Schede</h2>
+        </div>
+        <div id="routineGroupManager"></div>
+        <p id="routineGroupManagerEmpty" class="empty-state" hidden>Nessuna scheda creata.</p>
+      </div>
+
       <div class="chart-card">
         <div class="totals-header">
           <h2>Esercizi</h2>
@@ -142,9 +162,7 @@
       <div class="rest-timer">
         <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
         <div class="rest-timer-actions">
-          <button type="button" class="btn secondary rest-preset" data-seconds="60">60s</button>
-          <button type="button" class="btn secondary rest-preset" data-seconds="90">90s</button>
-          <button type="button" class="btn secondary rest-preset" data-seconds="120">120s</button>
+          <button type="button" class="btn secondary" id="restTimerReset">Azzera</button>
           <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
         </div>
       </div>
@@ -219,10 +237,76 @@
           <option value="bodyweight">Corpo libero</option>
         </select>
       </label>
+      <label>
+        Recupero tra le serie (s)
+        <input type="number" id="exerciseRest" min="0" step="15" value="90">
+      </label>
       <div class="modal-actions">
         <button type="submit" class="btn primary">Salva</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div id="routineModal" class="modal" hidden>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="routineModalTitle">Nuova scheda</h2>
+      <button id="closeRoutineModal" class="icon-btn" aria-label="Chiudi">&#10005;</button>
+    </div>
+
+    <div class="modal-form">
+      <label>
+        Gruppo scheda
+        <select id="routineGroupSelect">
+          <option value="__new__">+ Nuovo gruppo</option>
+        </select>
+      </label>
+      <div id="newRoutineGroupFields" class="new-category-fields" hidden>
+        <label>
+          Nome gruppo
+          <input type="text" id="newRoutineGroupName" maxlength="30" placeholder="Es. Push/Pull/Legs">
+        </label>
+      </div>
+
+      <label>
+        Nome scheda
+        <input type="text" id="routineName" maxlength="40" placeholder="Es. Push Day">
+      </label>
+
+      <h3>Esercizi</h3>
+      <ul id="routineExercisesList" class="category-manager"></ul>
+      <p id="routineExercisesEmpty" class="empty-state" hidden>Nessun esercizio aggiunto.</p>
+
+      <div class="add-set-form">
+        <label>
+          Esercizio
+          <select id="routineExerciseSelect">
+            <option value="__new__">+ Nuovo esercizio</option>
+          </select>
+        </label>
+        <div id="newRoutineExerciseFields" class="new-category-fields" hidden>
+          <label>
+            Nome
+            <input type="text" id="newRoutineExerciseName" maxlength="30" placeholder="Es. Panca piana">
+          </label>
+          <label>
+            Gruppo
+            <select id="newRoutineExerciseGroup"></select>
+          </label>
+        </div>
+        <label>
+          Recupero tra le serie (s)
+          <input type="number" id="routineExerciseRest" min="0" step="15" value="90">
+        </label>
+        <button type="button" id="addRoutineExerciseBtn" class="btn secondary">+ Aggiungi esercizio</button>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteRoutineBtn" class="btn danger" hidden>Elimina scheda</button>
+        <button type="button" id="saveRoutineBtn" class="btn primary">Salva scheda</button>
+      </div>
+    </div>
   </div>
 </div>
 

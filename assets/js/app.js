@@ -7,9 +7,12 @@ let currentWorkoutId = null;
 let editingExerciseId = null;
 let statsExerciseId = "";
 let restTimerInterval = null;
+let restTimerDuration = 90;
 let restTimerRemaining = 90;
 let restStoppedAt = null;
 let setStopwatchInterval = null;
+let startingRoutineId = null;
+let editingRoutineId = null;
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -164,10 +167,12 @@ function renderAll() {
   const { start, end } = getPeriodBounds(periodType, periodAnchor);
   const workouts = getWorkoutsInRange(start, end);
 
+  renderRoutinesSection();
   renderHomeTotals(workouts);
   renderStreakChip();
   renderWorkoutsList(workouts);
   renderExerciseManager();
+  renderRoutineGroupManager();
   renderStatsView();
 }
 
@@ -204,13 +209,15 @@ function renderWorkoutsList(workouts) {
     const sets = Store.getSetsForWorkout(w.id);
     const volume = sets.reduce((s, x) => s + x.weight * x.reps, 0);
     const groups = [...new Set(sets.map((s) => Store.getExerciseById(s.exerciseId)?.muscleGroup).filter(Boolean))];
+    const routine = w.routineId ? Store.getRoutineById(w.routineId) : null;
+    const title = routine ? routine.name : (groups.join(", ") || "Allenamento");
     const dateLabel = new Date(w.date + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "short" });
 
     const li = document.createElement("li");
     li.className = "movement-item";
     li.innerHTML = `
       <div class="info">
-        <div class="cat-name">${groups.join(", ") || "Allenamento"}</div>
+        <div class="cat-name">${title}</div>
         <div class="note">${sets.length} serie · ${formatKg(volume)}${w.note ? " · " + w.note : ""}</div>
       </div>
       <div class="meta">
@@ -219,6 +226,54 @@ function renderWorkoutsList(workouts) {
     `;
     li.addEventListener("click", () => openWorkoutModal("edit", w));
     list.appendChild(li);
+  }
+}
+
+function renderRoutinesSection() {
+  const container = document.getElementById("routinesSection");
+  const emptyState = document.getElementById("routinesEmpty");
+  const groups = Store.getRoutineGroups();
+  const routines = Store.getRoutines();
+  container.innerHTML = "";
+
+  if (routines.length === 0) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+
+  const buckets = groups.map((g) => ({ group: g, routines: routines.filter((r) => r.groupId === g.id) }));
+  const ungrouped = routines.filter((r) => !groups.some((g) => g.id === r.groupId));
+  if (ungrouped.length > 0) buckets.push({ group: { id: null, name: "Senza gruppo" }, routines: ungrouped });
+
+  for (const bucket of buckets) {
+    if (bucket.routines.length === 0) continue;
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "routine-group";
+    const title = document.createElement("h3");
+    title.className = "routine-group-title";
+    title.textContent = bucket.group.name;
+    groupDiv.appendChild(title);
+
+    const list = document.createElement("ul");
+    list.className = "routine-list";
+    for (const routine of bucket.routines) {
+      const li = document.createElement("li");
+      li.className = "routine-card";
+      li.innerHTML = `
+        <div class="routine-info">
+          <span class="routine-name">${routine.name}</span>
+          <span class="routine-meta">${routine.exerciseIds.length} esercizi</span>
+        </div>
+        <div class="routine-actions">
+          <button type="button" class="icon-btn routine-edit-btn" data-routine-id="${routine.id}" aria-label="Modifica scheda">✏️</button>
+          <button type="button" class="btn primary routine-start-btn" data-routine-id="${routine.id}">Avvia allenamento</button>
+        </div>
+      `;
+      list.appendChild(li);
+    }
+    groupDiv.appendChild(list);
+    container.appendChild(groupDiv);
   }
 }
 
@@ -315,6 +370,7 @@ function handleAddSet() {
     currentWorkoutId = Store.addWorkout({
       date: document.getElementById("workoutDate").value || toISODate(new Date()),
       note: document.getElementById("workoutNote").value,
+      routineId: startingRoutineId,
     }).id;
   }
 
@@ -334,31 +390,37 @@ function handleAddSet() {
   if (isPR) toast("\u{1F3C6} Nuovo record personale!");
 }
 
-function openWorkoutModal(mode, workout) {
+function openWorkoutModal(mode, workout, routineId) {
   const modal = document.getElementById("workoutModal");
-  // Don't reset an already-running rest timer / set stopwatch: closing the modal
-  // (to peek at Stats, answer a call, etc.) must not interrupt an in-progress rest.
-  if (!restTimerInterval && !restStoppedAt) {
-    setRestTimer(90);
-  }
 
   document.getElementById("workoutNote").value = "";
   document.getElementById("workoutDate").value = toISODate(new Date());
   document.getElementById("setWeight").value = "";
   document.getElementById("setReps").value = "";
   document.getElementById("setRir").value = "";
-  populateExerciseSelect(null);
 
+  let routine = null;
   if (mode === "edit") {
     currentWorkoutId = workout.id;
-    document.getElementById("workoutModalTitle").textContent = "Modifica allenamento";
+    startingRoutineId = workout.routineId || null;
+    routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
     document.getElementById("workoutDate").value = workout.date;
     document.getElementById("workoutNote").value = workout.note || "";
     document.getElementById("deleteWorkoutBtn").hidden = false;
+    populateExerciseSelect(null);
   } else {
     currentWorkoutId = null;
-    document.getElementById("workoutModalTitle").textContent = "Nuovo allenamento";
+    startingRoutineId = routineId || null;
+    routine = startingRoutineId ? Store.getRoutineById(startingRoutineId) : null;
     document.getElementById("deleteWorkoutBtn").hidden = true;
+    populateExerciseSelect(routine && routine.exerciseIds[0] ? routine.exerciseIds[0] : null);
+  }
+  document.getElementById("workoutModalTitle").textContent = routine ? routine.name : (mode === "edit" ? "Modifica allenamento" : "Nuovo allenamento");
+
+  // Don't reset an already-running rest timer / set stopwatch: closing the modal
+  // (to peek at Stats, answer a call, etc.) must not interrupt an in-progress rest.
+  if (!restTimerInterval && !restStoppedAt) {
+    resetRestTimer();
   }
 
   renderSetsList(currentWorkoutId);
@@ -372,6 +434,7 @@ function closeWorkoutModal() {
   }
   document.getElementById("workoutModal").hidden = true;
   currentWorkoutId = null;
+  startingRoutineId = null;
   renderAll();
 }
 
@@ -379,6 +442,7 @@ function handleDeleteWorkout() {
   if (!currentWorkoutId) return;
   Store.deleteWorkout(currentWorkoutId);
   currentWorkoutId = null;
+  startingRoutineId = null;
   stopRestTimer();
   clearSetStopwatch(false);
   document.getElementById("workoutModal").hidden = true;
@@ -391,32 +455,50 @@ function formatTimer(sec) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function setRestTimer(seconds) {
-  stopRestTimer();
-  restTimerRemaining = seconds;
-  document.getElementById("restTimerDisplay").textContent = formatTimer(restTimerRemaining);
+function getExerciseRest(exerciseId) {
+  const exercise = exerciseId ? Store.getExerciseById(exerciseId) : null;
+  return exercise && exercise.restSeconds != null ? exercise.restSeconds : 90;
+}
+
+function updateRestTimerDisplay() {
+  document.getElementById("restTimerDisplay").textContent = formatTimer(Math.max(0, restTimerRemaining));
+  const btn = document.getElementById("restTimerToggle");
+  if (restTimerInterval) btn.textContent = "Pausa";
+  else if (restTimerRemaining > 0 && restTimerRemaining < restTimerDuration) btn.textContent = "Riprendi";
+  else btn.textContent = "Avvia";
+}
+
+// Resets to the currently selected exercise's configured rest time, stopped and ready.
+// Used on modal open, on natural expiry, on Azzera, and (guarded) when switching exercise while idle.
+function resetRestTimer() {
+  clearInterval(restTimerInterval);
+  restTimerInterval = null;
+  const exerciseId = document.getElementById("setExerciseSelect")?.value;
+  if (exerciseId && exerciseId !== "__new__") restTimerDuration = getExerciseRest(exerciseId);
+  restTimerRemaining = restTimerDuration;
+  updateRestTimerDisplay();
 }
 
 function startRestTimer() {
-  clearSetStopwatch(false);
-  if (restTimerRemaining <= 0) restTimerRemaining = 90;
-  document.getElementById("restTimerToggle").textContent = "Pausa";
+  if (restTimerRemaining <= 0) restTimerRemaining = restTimerDuration;
   restTimerInterval = setInterval(() => {
     restTimerRemaining--;
-    document.getElementById("restTimerDisplay").textContent = formatTimer(Math.max(0, restTimerRemaining));
+    updateRestTimerDisplay();
     if (restTimerRemaining <= 0) {
       stopRestTimer();
       startSetStopwatch();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       toast("Riposo terminato");
+      resetRestTimer();
     }
   }, 1000);
+  updateRestTimerDisplay();
 }
 
 function stopRestTimer() {
   clearInterval(restTimerInterval);
   restTimerInterval = null;
-  document.getElementById("restTimerToggle").textContent = "Avvia";
+  updateRestTimerDisplay();
 }
 
 function startSetStopwatch() {
@@ -476,6 +558,7 @@ function renderExerciseManager() {
         ${ex.name}
         <span class="budget-badge">${ex.muscleGroup}</span>
         ${ex.unit === "bodyweight" ? '<span class="budget-badge">corpo libero</span>' : ""}
+        <span class="budget-badge">riposo ${formatTimer(getExerciseRest(ex.id))}</span>
       </span>
       <div class="cat-manager-actions">
         <button type="button" class="ex-edit" data-exercise-id="${ex.id}" aria-label="Modifica esercizio">✏️</button>
@@ -493,6 +576,7 @@ function openExerciseModal(exercise) {
   document.getElementById("exerciseName").value = exercise.name;
   document.getElementById("exerciseGroup").value = exercise.muscleGroup;
   document.getElementById("exerciseUnit").value = exercise.unit;
+  document.getElementById("exerciseRest").value = getExerciseRest(exercise.id);
   modal.hidden = false;
 }
 
@@ -504,6 +588,228 @@ function closeExerciseModal() {
 function handleDeleteExercise(id) {
   const result = Store.deleteExercise(id);
   if (!result.ok) return;
+  renderAll();
+}
+
+// --- Routines (schede) ---
+// The exercise list is edited as a local draft (editingRoutineExerciseIds) and only
+// persisted to Store on "Salva scheda", same deferred pattern as the exercise edit form.
+let editingRoutineExerciseIds = [];
+
+function renderRoutineGroupManager() {
+  const container = document.getElementById("routineGroupManager");
+  const emptyState = document.getElementById("routineGroupManagerEmpty");
+  const groups = Store.getRoutineGroups();
+  const routines = Store.getRoutines();
+  container.innerHTML = "";
+
+  if (routines.length === 0 && groups.length === 0) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+
+  const buckets = groups.map((g) => ({ group: g, routines: routines.filter((r) => r.groupId === g.id) }));
+  const ungrouped = routines.filter((r) => !groups.some((g) => g.id === r.groupId));
+  if (ungrouped.length > 0) buckets.push({ group: { id: null, name: "Senza gruppo" }, routines: ungrouped });
+
+  for (const bucket of buckets) {
+    const wrap = document.createElement("div");
+    wrap.className = "routine-group-manage";
+    wrap.innerHTML = `
+      <div class="routine-group-header">
+        <span>${bucket.group.name}</span>
+        ${bucket.group.id ? `<div class="cat-manager-actions"><button type="button" class="rg-delete" data-group-id="${bucket.group.id}" ${bucket.routines.length > 0 ? "disabled" : ""} title="${bucket.routines.length > 0 ? "Non eliminabile: ha schede collegate" : "Elimina gruppo"}" aria-label="Elimina gruppo">\u{1F5D1}️</button></div>` : ""}
+      </div>
+      <ul class="category-manager"></ul>
+    `;
+    const list = wrap.querySelector("ul");
+    for (const routine of bucket.routines) {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span class="cat-name">${routine.name} <span class="budget-badge">${routine.exerciseIds.length} esercizi</span></span>
+        <div class="cat-manager-actions">
+          <button type="button" class="routine-edit" data-routine-id="${routine.id}" aria-label="Modifica scheda">✏️</button>
+          <button type="button" class="routine-delete" data-routine-id="${routine.id}" aria-label="Elimina scheda">\u{1F5D1}️</button>
+        </div>
+      `;
+      list.appendChild(li);
+    }
+    container.appendChild(wrap);
+  }
+}
+
+function populateRoutineGroupSelect(selectedId) {
+  const select = document.getElementById("routineGroupSelect");
+  const groups = Store.getRoutineGroups();
+  select.innerHTML = "";
+  for (const g of groups) {
+    const opt = document.createElement("option");
+    opt.value = g.id;
+    opt.textContent = g.name;
+    select.appendChild(opt);
+  }
+  const newOpt = document.createElement("option");
+  newOpt.value = "__new__";
+  newOpt.textContent = "+ Nuovo gruppo";
+  select.appendChild(newOpt);
+
+  select.value = selectedId && groups.some((g) => g.id === selectedId) ? selectedId : (groups[0] ? groups[0].id : "__new__");
+  toggleNewRoutineGroupFields();
+}
+
+function toggleNewRoutineGroupFields() {
+  const select = document.getElementById("routineGroupSelect");
+  document.getElementById("newRoutineGroupFields").hidden = select.value !== "__new__";
+}
+
+function populateRoutineExerciseSelect() {
+  const select = document.getElementById("routineExerciseSelect");
+  const available = Store.getExercises().filter((e) => !editingRoutineExerciseIds.includes(e.id));
+  select.innerHTML = "";
+  for (const ex of available) {
+    const opt = document.createElement("option");
+    opt.value = ex.id;
+    opt.textContent = ex.name;
+    select.appendChild(opt);
+  }
+  const newOpt = document.createElement("option");
+  newOpt.value = "__new__";
+  newOpt.textContent = "+ Nuovo esercizio";
+  select.appendChild(newOpt);
+
+  select.value = available[0] ? available[0].id : "__new__";
+  document.getElementById("routineExerciseRest").value = available[0] ? getExerciseRest(available[0].id) : 90;
+  toggleNewRoutineExerciseFields();
+}
+
+function toggleNewRoutineExerciseFields() {
+  const select = document.getElementById("routineExerciseSelect");
+  document.getElementById("newRoutineExerciseFields").hidden = select.value !== "__new__";
+}
+
+function renderRoutineExercisesList() {
+  const list = document.getElementById("routineExercisesList");
+  const emptyState = document.getElementById("routineExercisesEmpty");
+  list.innerHTML = "";
+
+  if (editingRoutineExerciseIds.length === 0) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+
+  editingRoutineExerciseIds.forEach((exerciseId, idx) => {
+    const exercise = Store.getExerciseById(exerciseId);
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"} <span class="budget-badge">riposo ${formatTimer(getExerciseRest(exerciseId))}</span></span>
+      <div class="cat-manager-actions">
+        <button type="button" class="rex-move" data-index="${idx}" data-direction="-1" ${idx === 0 ? "disabled" : ""} aria-label="Sposta su">&#8593;</button>
+        <button type="button" class="rex-move" data-index="${idx}" data-direction="1" ${idx === editingRoutineExerciseIds.length - 1 ? "disabled" : ""} aria-label="Sposta giù">&#8595;</button>
+        <button type="button" class="rex-remove" data-index="${idx}" aria-label="Rimuovi">&#10005;</button>
+      </div>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function handleAddExerciseToRoutine() {
+  let exerciseId = document.getElementById("routineExerciseSelect").value;
+  const restSeconds = Math.max(0, Number(document.getElementById("routineExerciseRest").value) || 0);
+
+  if (exerciseId === "__new__") {
+    const name = document.getElementById("newRoutineExerciseName").value.trim();
+    const group = document.getElementById("newRoutineExerciseGroup").value;
+    if (!name) {
+      document.getElementById("newRoutineExerciseName").focus();
+      return;
+    }
+    exerciseId = Store.addExercise(name, group, "kg", restSeconds).id;
+  } else {
+    Store.updateExercise(exerciseId, { restSeconds });
+  }
+
+  editingRoutineExerciseIds.push(exerciseId);
+  document.getElementById("newRoutineExerciseName").value = "";
+  populateRoutineExerciseSelect();
+  renderRoutineExercisesList();
+}
+
+function handleMoveRoutineExercise(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= editingRoutineExerciseIds.length) return;
+  [editingRoutineExerciseIds[index], editingRoutineExerciseIds[newIndex]] = [editingRoutineExerciseIds[newIndex], editingRoutineExerciseIds[index]];
+  renderRoutineExercisesList();
+}
+
+function handleRemoveRoutineExercise(index) {
+  editingRoutineExerciseIds.splice(index, 1);
+  renderRoutineExercisesList();
+  populateRoutineExerciseSelect();
+}
+
+function openRoutineModal(mode, routine) {
+  document.getElementById("routineName").value = "";
+  document.getElementById("newRoutineGroupName").value = "";
+
+  if (mode === "edit") {
+    editingRoutineId = routine.id;
+    document.getElementById("routineModalTitle").textContent = "Modifica scheda";
+    document.getElementById("routineName").value = routine.name;
+    populateRoutineGroupSelect(routine.groupId);
+    editingRoutineExerciseIds = [...routine.exerciseIds];
+    document.getElementById("deleteRoutineBtn").hidden = false;
+  } else {
+    editingRoutineId = null;
+    document.getElementById("routineModalTitle").textContent = "Nuova scheda";
+    populateRoutineGroupSelect(null);
+    editingRoutineExerciseIds = [];
+    document.getElementById("deleteRoutineBtn").hidden = true;
+  }
+
+  populateRoutineExerciseSelect();
+  renderRoutineExercisesList();
+  document.getElementById("routineModal").hidden = false;
+}
+
+function closeRoutineModal() {
+  document.getElementById("routineModal").hidden = true;
+  editingRoutineId = null;
+  editingRoutineExerciseIds = [];
+}
+
+function handleSaveRoutine() {
+  const name = document.getElementById("routineName").value.trim();
+  if (!name) {
+    document.getElementById("routineName").focus();
+    return;
+  }
+
+  let groupId = document.getElementById("routineGroupSelect").value;
+  if (groupId === "__new__") {
+    const groupName = document.getElementById("newRoutineGroupName").value.trim();
+    if (!groupName) {
+      document.getElementById("newRoutineGroupName").focus();
+      return;
+    }
+    groupId = Store.addRoutineGroup(groupName).id;
+  }
+
+  if (editingRoutineId) {
+    Store.updateRoutine(editingRoutineId, { name, groupId, exerciseIds: editingRoutineExerciseIds });
+  } else {
+    Store.addRoutine({ groupId, name, exerciseIds: editingRoutineExerciseIds });
+  }
+
+  closeRoutineModal();
+  renderAll();
+}
+
+function handleDeleteRoutine() {
+  if (!editingRoutineId) return;
+  Store.deleteRoutine(editingRoutineId);
+  closeRoutineModal();
   renderAll();
 }
 
@@ -680,6 +986,7 @@ function registerServiceWorker() {
 document.addEventListener("DOMContentLoaded", () => {
   fillMuscleGroupOptions(document.getElementById("newExerciseGroup"));
   fillMuscleGroupOptions(document.getElementById("exerciseGroup"));
+  fillMuscleGroupOptions(document.getElementById("newRoutineExerciseGroup"));
 
   document.getElementById("periodType").addEventListener("change", (e) => {
     periodType = e.target.value;
@@ -708,7 +1015,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentWorkoutId) Store.updateWorkout(currentWorkoutId, { note: e.target.value });
   });
 
-  document.getElementById("setExerciseSelect").addEventListener("change", toggleNewExerciseFields);
+  document.getElementById("setExerciseSelect").addEventListener("change", () => {
+    toggleNewExerciseFields();
+    // Only resync the ready-to-start duration when idle/fresh; don't disrupt a running or paused rest.
+    if (!restTimerInterval && restTimerRemaining === restTimerDuration) {
+      resetRestTimer();
+    }
+  });
   document.getElementById("addSetBtn").addEventListener("click", handleAddSet);
   document.getElementById("setsList").addEventListener("click", (e) => {
     const btn = e.target.closest(".set-delete");
@@ -717,17 +1030,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSetsList(currentWorkoutId);
   });
 
-  document.querySelectorAll(".rest-preset").forEach((btn) => {
-    btn.addEventListener("click", () => setRestTimer(Number(btn.dataset.seconds)));
-  });
   document.getElementById("restTimerToggle").addEventListener("click", () => {
-    if (restTimerInterval) {
-      stopRestTimer();
-      startSetStopwatch();
-    } else {
-      startRestTimer();
-    }
+    if (restTimerInterval) stopRestTimer();
+    else startRestTimer();
   });
+  document.getElementById("restTimerReset").addEventListener("click", resetRestTimer);
 
   document.getElementById("addExerciseBtn").addEventListener("click", () => {
     document.getElementById("exerciseModalTitle").textContent = "Nuovo esercizio";
@@ -736,6 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("exerciseName").value = "";
     document.getElementById("exerciseGroup").value = MUSCLE_GROUPS[0];
     document.getElementById("exerciseUnit").value = "kg";
+    document.getElementById("exerciseRest").value = 90;
     document.getElementById("exerciseModal").hidden = false;
   });
   document.getElementById("exerciseManager").addEventListener("click", (e) => {
@@ -760,12 +1068,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const name = document.getElementById("exerciseName").value.trim();
     const muscleGroup = document.getElementById("exerciseGroup").value;
     const unit = document.getElementById("exerciseUnit").value;
+    const restSeconds = Math.max(0, Number(document.getElementById("exerciseRest").value) || 0);
     if (!name) return;
 
     if (editingExerciseId) {
-      Store.updateExercise(editingExerciseId, { name, muscleGroup, unit });
+      Store.updateExercise(editingExerciseId, { name, muscleGroup, unit, restSeconds });
     } else {
-      Store.addExercise(name, muscleGroup, unit);
+      Store.addExercise(name, muscleGroup, unit, restSeconds);
     }
     closeExerciseModal();
     renderAll();
@@ -783,6 +1092,61 @@ document.addEventListener("DOMContentLoaded", () => {
     e.target.value = "";
     if (file) importBackup(file);
   });
+
+  document.getElementById("addRoutineBtn").addEventListener("click", () => openRoutineModal("add"));
+  document.getElementById("routinesSection").addEventListener("click", (e) => {
+    const startBtn = e.target.closest(".routine-start-btn");
+    if (startBtn) {
+      openWorkoutModal("add", null, startBtn.dataset.routineId);
+      return;
+    }
+    const editBtn = e.target.closest(".routine-edit-btn");
+    if (editBtn) {
+      const routine = Store.getRoutineById(editBtn.dataset.routineId);
+      if (routine) openRoutineModal("edit", routine);
+    }
+  });
+  document.getElementById("routineGroupManager").addEventListener("click", (e) => {
+    const editBtn = e.target.closest(".routine-edit");
+    if (editBtn) {
+      const routine = Store.getRoutineById(editBtn.dataset.routineId);
+      if (routine) openRoutineModal("edit", routine);
+      return;
+    }
+    const delBtn = e.target.closest(".routine-delete");
+    if (delBtn) {
+      Store.deleteRoutine(delBtn.dataset.routineId);
+      renderAll();
+      return;
+    }
+    const rgDelBtn = e.target.closest(".rg-delete");
+    if (rgDelBtn && !rgDelBtn.disabled) {
+      Store.deleteRoutineGroup(rgDelBtn.dataset.groupId);
+      renderAll();
+    }
+  });
+  document.getElementById("closeRoutineModal").addEventListener("click", closeRoutineModal);
+  document.getElementById("routineModal").addEventListener("click", (e) => {
+    if (e.target.id === "routineModal") closeRoutineModal();
+  });
+  document.getElementById("routineGroupSelect").addEventListener("change", toggleNewRoutineGroupFields);
+  document.getElementById("routineExerciseSelect").addEventListener("change", () => {
+    toggleNewRoutineExerciseFields();
+    const val = document.getElementById("routineExerciseSelect").value;
+    document.getElementById("routineExerciseRest").value = val && val !== "__new__" ? getExerciseRest(val) : 90;
+  });
+  document.getElementById("addRoutineExerciseBtn").addEventListener("click", handleAddExerciseToRoutine);
+  document.getElementById("routineExercisesList").addEventListener("click", (e) => {
+    const moveBtn = e.target.closest(".rex-move");
+    if (moveBtn) {
+      handleMoveRoutineExercise(Number(moveBtn.dataset.index), Number(moveBtn.dataset.direction));
+      return;
+    }
+    const removeBtn = e.target.closest(".rex-remove");
+    if (removeBtn) handleRemoveRoutineExercise(Number(removeBtn.dataset.index));
+  });
+  document.getElementById("saveRoutineBtn").addEventListener("click", handleSaveRoutine);
+  document.getElementById("deleteRoutineBtn").addEventListener("click", handleDeleteRoutine);
 
   registerServiceWorker();
   renderAll();

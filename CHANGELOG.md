@@ -3,6 +3,19 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-11 — Feature (schede in stile Hevy, timer avanzato)
+
+### Aggiunto
+- **Schede**: nuova gerarchia Gruppo scheda → Scheda → Esercizi (`routineGroups`/`routines` in storage.js, `exerciseIds` ordinato). In Home, sezione "Le tue schede" raggruppata con bottone "Avvia allenamento" per ogni scheda; creazione/modifica da un modale dedicato (`#routineModal`, stesso pattern di quick-create già usato per esercizi/categorie) raggiungibile sia da Home (+) sia da Gestione ("Schede").
+- **Recupero per esercizio**: campo `restSeconds` sull'esercizio (default 90s), impostabile sia in Gestione sia al momento di aggiungerlo a una scheda. "Avvia allenamento" preseleziona il primo esercizio della scheda e il timer riposo assume subito la sua durata; cambiando esercizio dal select — solo se il timer è a riposo, non se è in corso o in pausa — la durata pronta si aggiorna di conseguenza.
+- **Timer riposo Avvia/Pausa/Riprendi/Azzera**: sostituiti i preset fissi 60/90/120s. Pausa congela il conteggio (Riprendi continua da lì), Azzera lo riporta alla durata configurata per l'esercizio corrente. Allo scadere naturale, il timer si auto-azzera pronto per la serie successiva invece di restare fermo a 0:00.
+- Storico allenamenti: se un allenamento proviene da una scheda, la lista in Home mostra il nome della scheda invece dei soli gruppi muscolari.
+- Backup/ripristino JSON estesi automaticamente a `routineGroups`/`routines` (nessuna modifica visibile, `exportAll()`/`importAll()` già generici sull'intero storage).
+
+### Modificato
+- Il cronometro "Serie in corso" (media storica) ora scatta solo allo scadere naturale del riposo, non più anche fermandolo manualmente: con Pausa reale distinta da "ho iniziato la serie", il vecchio segnale (stop manuale) non è più univoco.
+- Bump `CACHE_NAME` a `gymtrack-v3`.
+
 ## 2026-07-11 — Fix (torna al modale, zoom, timer interrotto)
 
 ### Fix

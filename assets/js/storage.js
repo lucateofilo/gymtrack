@@ -1,19 +1,23 @@
 const STORAGE_KEY = "gymtrack_data";
 const MUSCLE_GROUPS = ["Petto", "Schiena", "Gambe", "Spalle", "Braccia", "Core", "Cardio"];
 
+function emptyData() {
+  return { exercises: [], workouts: [], sets: [], routineGroups: [], routines: [] };
+}
+
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return { exercises: [], workouts: [], sets: [] };
-  }
+  if (!raw) return emptyData();
   try {
     const data = JSON.parse(raw);
     if (!Array.isArray(data.exercises)) data.exercises = [];
     if (!Array.isArray(data.workouts)) data.workouts = [];
     if (!Array.isArray(data.sets)) data.sets = [];
+    if (!Array.isArray(data.routineGroups)) data.routineGroups = [];
+    if (!Array.isArray(data.routines)) data.routines = [];
     return data;
   } catch {
-    return { exercises: [], workouts: [], sets: [] };
+    return emptyData();
   }
 }
 
@@ -41,9 +45,9 @@ const Store = {
     return loadData().exercises;
   },
 
-  addExercise(name, muscleGroup, unit = "kg") {
+  addExercise(name, muscleGroup, unit = "kg", restSeconds = 90) {
     const data = loadData();
-    const exercise = { id: genId(), name: name.trim(), muscleGroup, unit };
+    const exercise = { id: genId(), name: name.trim(), muscleGroup, unit, restSeconds };
     data.exercises.push(exercise);
     saveData(data);
     return exercise;
@@ -83,9 +87,9 @@ const Store = {
     return loadData().workouts;
   },
 
-  addWorkout({ date, note = "" }) {
+  addWorkout({ date, note = "", routineId = null }) {
     const data = loadData();
-    const workout = { id: genId(), date, note: note.trim() };
+    const workout = { id: genId(), date, note: note.trim(), routineId };
     data.workouts.push(workout);
     saveData(data);
     return workout;
@@ -134,6 +138,56 @@ const Store = {
     saveData(data);
   },
 
+  getRoutineGroups() {
+    return loadData().routineGroups;
+  },
+
+  addRoutineGroup(name) {
+    const data = loadData();
+    const group = { id: genId(), name: name.trim() };
+    data.routineGroups.push(group);
+    saveData(data);
+    return group;
+  },
+
+  deleteRoutineGroup(id) {
+    const data = loadData();
+    const inUse = data.routines.some((r) => r.groupId === id);
+    if (inUse) return { ok: false, reason: "in_use" };
+    data.routineGroups = data.routineGroups.filter((g) => g.id !== id);
+    saveData(data);
+    return { ok: true };
+  },
+
+  getRoutines() {
+    return loadData().routines;
+  },
+
+  getRoutineById(id) {
+    return loadData().routines.find((r) => r.id === id) || null;
+  },
+
+  addRoutine({ groupId, name, exerciseIds = [] }) {
+    const data = loadData();
+    const routine = { id: genId(), groupId, name: name.trim(), exerciseIds };
+    data.routines.push(routine);
+    saveData(data);
+    return routine;
+  },
+
+  updateRoutine(id, changes) {
+    const data = loadData();
+    const routine = updateEntity(data.routines, id, changes);
+    if (routine) saveData(data);
+    return routine;
+  },
+
+  deleteRoutine(id) {
+    const data = loadData();
+    data.routines = data.routines.filter((r) => r.id !== id);
+    saveData(data);
+  },
+
   exportAll() {
     return loadData();
   },
@@ -144,6 +198,8 @@ const Store = {
       exercises: Array.isArray(data.exercises) ? data.exercises : [],
       workouts: Array.isArray(data.workouts) ? data.workouts : [],
       sets: Array.isArray(data.sets) ? data.sets : [],
+      routineGroups: Array.isArray(data.routineGroups) ? data.routineGroups : [],
+      routines: Array.isArray(data.routines) ? data.routines : [],
     });
     return true;
   },
