@@ -155,6 +155,35 @@
         </div>
         <input type="file" id="importBackupInput" accept="application/json,.json" hidden>
       </div>
+
+      <div class="chart-card">
+        <h2>Importa da Excel / CSV</h2>
+
+        <div class="import-section">
+          <h3>1. Scarica template</h3>
+          <p class="export-hint">File CSV apribile con Excel o Fogli Google. Compila le righe e salva come CSV prima di importare.</p>
+          <button type="button" id="downloadImportTemplateBtn" class="btn secondary">Scarica template CSV</button>
+        </div>
+
+        <div class="import-section">
+          <h3>2. Carica file</h3>
+          <div class="import-upload-row">
+            <label for="importCsvInput" class="btn secondary">Scegli file</label>
+            <span id="importFileName" class="import-file-name"></span>
+          </div>
+          <input type="file" id="importCsvInput" accept=".csv,text/csv" hidden>
+        </div>
+
+        <div id="importPreviewSection" class="import-section" hidden>
+          <h3>3. Anteprima dati</h3>
+          <div id="importPreviewSummary"></div>
+          <div id="importPreviewTable"></div>
+          <div class="backup-actions" style="margin-top:12px">
+            <button type="button" id="importCancelBtn" class="btn secondary">Annulla</button>
+            <button type="button" id="importConfirmBtn" class="btn primary" hidden>Importa</button>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 

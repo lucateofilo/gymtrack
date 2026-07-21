@@ -1597,6 +1597,171 @@ function registerServiceWorker() {
   }
 }
 
+// === IMPORTA DA CSV ===
+
+let importParsedData = null;
+
+function downloadImportTemplate() {
+  const rows = [
+    ["Data", "Esercizio", "Gruppo", "Peso", "Reps", "RIR", "Durata (min)", "Distanza (km)"],
+    ["2026-07-21", "Panca piana", "Petto", "80", "8", "2", "", ""],
+    ["2026-07-21", "Squat", "Gambe", "100", "5", "1", "", ""],
+    ["2026-07-22", "Corsa", "Cardio", "", "", "", "30", "5.2"],
+  ];
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  downloadBlob(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }), "gymtrack-template-import.csv");
+}
+
+function parseCSVRow(line) {
+  const cols = [];
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === "," && !inQ) {
+      cols.push(cur); cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  cols.push(cur);
+  return cols;
+}
+
+function parseImportCSV(text) {
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return { error: "Il file è vuoto o contiene solo l'intestazione." };
+
+  const header = parseCSVRow(lines[0]).map((h) => h.trim().toLowerCase());
+  const ci = {
+    data:      header.findIndex((h) => h === "data"),
+    esercizio: header.findIndex((h) => h === "esercizio"),
+    gruppo:    header.findIndex((h) => h === "gruppo"),
+    peso:      header.findIndex((h) => h.startsWith("peso")),
+    reps:      header.findIndex((h) => h === "reps"),
+    rir:       header.findIndex((h) => h === "rir"),
+    dur:       header.findIndex((h) => h.startsWith("durata")),
+    dist:      header.findIndex((h) => h.startsWith("distanza")),
+  };
+
+  if (ci.data === -1 || ci.esercizio === -1) {
+    return { error: 'Colonne obbligatorie mancanti: il file deve avere almeno "Data" ed "Esercizio".' };
+  }
+
+  const existing = Store.getExercises();
+  const rows = [];
+  let skipped = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVRow(lines[i]);
+    const date = cols[ci.data]?.trim() ?? "";
+    const exName = cols[ci.esercizio]?.trim() ?? "";
+    if (!date || !exName || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { skipped++; continue; }
+
+    const groupRaw = ci.gruppo !== -1 ? cols[ci.gruppo]?.trim() ?? "" : "";
+    const found = existing.find((e) => e.name.toLowerCase() === exName.toLowerCase());
+    rows.push({
+      date, exName,
+      group: found ? found.muscleGroup : (MUSCLE_GROUPS.includes(groupRaw) ? groupRaw : MUSCLE_GROUPS[0]),
+      isNew: !found,
+      existingId: found?.id ?? null,
+      weight: Math.abs(parseFloat(cols[ci.peso]) || 0),
+      reps: Math.max(0, parseInt(cols[ci.reps]) || 0),
+      rir: ci.rir !== -1 && cols[ci.rir]?.trim() ? parseInt(cols[ci.rir]) : null,
+      durationMin: ci.dur !== -1 && cols[ci.dur]?.trim() ? parseFloat(cols[ci.dur]) : null,
+      distanceKm: ci.dist !== -1 && cols[ci.dist]?.trim() ? parseFloat(cols[ci.dist]) : null,
+    });
+  }
+
+  if (rows.length === 0) return { error: "Nessuna riga valida trovata. Le date devono essere nel formato YYYY-MM-DD." };
+  return { rows, skipped };
+}
+
+function renderImportPreview(parsed) {
+  const section = document.getElementById("importPreviewSection");
+  const summaryEl = document.getElementById("importPreviewSummary");
+  const tableEl = document.getElementById("importPreviewTable");
+
+  if (parsed.error) {
+    summaryEl.innerHTML = `<p class="import-error">${parsed.error}</p>`;
+    tableEl.innerHTML = "";
+    document.getElementById("importConfirmBtn").hidden = true;
+    section.hidden = false;
+    return;
+  }
+
+  const { rows, skipped } = parsed;
+  const dates = [...new Set(rows.map((r) => r.date))];
+  const newNames = [...new Set(rows.filter((r) => r.isNew).map((r) => r.exName))];
+  const existingWDates = new Set(Store.getWorkouts().map((w) => w.date));
+  const conflicts = dates.filter((d) => existingWDates.has(d));
+
+  let html = `<div class="import-summary">
+    <span>${dates.length} allenament${dates.length === 1 ? "o" : "i"}</span>
+    <span>${rows.length} serie</span>
+    ${newNames.length ? `<span class="import-chip-new">${newNames.length} nuov${newNames.length === 1 ? "o" : "i"} eserciz${newNames.length === 1 ? "io" : "i"}</span>` : ""}
+    ${skipped ? `<span class="import-chip-warn">${skipped} rig${skipped === 1 ? "a ignorata" : "he ignorate"}</span>` : ""}
+  </div>`;
+  if (conflicts.length) html += `<p class="import-warn-text">Hai già allenamenti in queste date — verranno aggiunte nuove sessioni: ${conflicts.join(", ")}.</p>`;
+  if (newNames.length) html += `<p class="import-info-text">Nuovi esercizi che verranno creati: ${newNames.join(", ")}.</p>`;
+  summaryEl.innerHTML = html;
+
+  const display = rows.slice(0, 50);
+  let tHtml = `<table class="import-table"><thead><tr><th>Data</th><th>Esercizio</th><th>Gruppo</th><th>Peso</th><th>Reps</th><th>RIR</th></tr></thead><tbody>`;
+  for (const r of display) {
+    tHtml += `<tr${r.isNew ? ' class="import-row-new"' : ""}><td>${r.date}</td><td>${r.exName}${r.isNew ? ' <span class="import-new-badge">nuovo</span>' : ""}</td><td>${r.group}</td><td>${r.weight || ""}</td><td>${r.reps || ""}</td><td>${r.rir ?? ""}</td></tr>`;
+  }
+  tHtml += `</tbody></table>`;
+  if (rows.length > 50) tHtml += `<p class="import-more">... e altre ${rows.length - 50} righe</p>`;
+  tableEl.innerHTML = tHtml;
+
+  document.getElementById("importConfirmBtn").hidden = false;
+  section.hidden = false;
+}
+
+function confirmImport() {
+  if (!importParsedData?.rows) return;
+  const { rows } = importParsedData;
+
+  const exMap = new Map(Store.getExercises().map((e) => [e.name.toLowerCase(), e.id]));
+  for (const r of rows) {
+    if (r.isNew && !exMap.has(r.exName.toLowerCase())) {
+      const ex = Store.addExercise(r.exName, r.group);
+      exMap.set(r.exName.toLowerCase(), ex.id);
+    }
+  }
+
+  const byDate = new Map();
+  for (const r of rows) {
+    if (!byDate.has(r.date)) byDate.set(r.date, []);
+    byDate.get(r.date).push(r);
+  }
+
+  for (const [date, dateRows] of [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    const workout = Store.addWorkout({ date });
+    for (const r of dateRows) {
+      const exId = exMap.get(r.exName.toLowerCase());
+      if (exId) Store.addSet({ workoutId: workout.id, exerciseId: exId, weight: r.weight, reps: r.reps, rir: r.rir, durationMin: r.durationMin, distanceKm: r.distanceKm });
+    }
+  }
+
+  const count = byDate.size;
+  resetImportUI();
+  renderAll();
+  toast(`Importati ${rows.length} serie in ${count} allenament${count === 1 ? "o" : "i"}.`);
+}
+
+function resetImportUI() {
+  importParsedData = null;
+  document.getElementById("importCsvInput").value = "";
+  document.getElementById("importFileName").textContent = "";
+  document.getElementById("importPreviewSection").hidden = true;
+  document.getElementById("importConfirmBtn").hidden = true;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   fillMuscleGroupOptions(document.getElementById("newExerciseGroup"));
   fillMuscleGroupOptions(document.getElementById("exerciseGroup"));
@@ -1759,6 +1924,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const file = e.target.files[0];
     e.target.value = "";
     if (file) importBackup(file);
+  });
+
+  document.getElementById("downloadImportTemplateBtn").addEventListener("click", downloadImportTemplate);
+  document.getElementById("importCsvInput").addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    document.getElementById("importFileName").textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => {
+      importParsedData = parseImportCSV(reader.result);
+      renderImportPreview(importParsedData);
+    };
+    reader.readAsText(file, "UTF-8");
+  });
+  document.getElementById("importCancelBtn").addEventListener("click", resetImportUI);
+  document.getElementById("importConfirmBtn").addEventListener("click", () => {
+    const n = importParsedData?.rows?.length ?? 0;
+    if (confirm(`Importare ${n} serie? Verranno aggiunti dati nuovi senza rimuovere quelli esistenti.`)) confirmImport();
   });
 
   document.getElementById("addRoutineBtn").addEventListener("click", () => openRoutineModal("add"));
