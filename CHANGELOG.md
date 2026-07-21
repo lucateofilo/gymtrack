@@ -3,6 +3,16 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-07-21 — Feature (import da CSV/Excel con preview pre-conferma)
+
+### Aggiunto
+- **Importa da Excel / CSV** in Gestione: tre sezioni distinte.
+  1. **Scarica template**: file CSV con gli stessi header dell'export esistente e righe di esempio (forza e cardio), apribile direttamente in Excel o Fogli Google.
+  2. **Carica file**: selettore CSV con nome file visualizzato.
+  3. **Anteprima dati**: chip riepilogo (allenamenti, serie, nuovi esercizi, righe ignorate), avviso in caso di date con allenamenti già presenti, lista degli esercizi nuovi che verranno creati, tabella scrollabile (max 50 righe) con badge "nuovo" sugli esercizi inesistenti — poi Annulla o Importa.
+- L'importazione crea automaticamente gli esercizi mancanti, raggruppa le righe per data in workout separati e non tocca i dati esistenti.
+- Bump `CACHE_NAME` a `gymtrack-v11`.
+
 ## 2026-07-11 — Feature (esercizi cardio: durata/distanza al posto di peso/reps)
 
 ### Aggiunto
