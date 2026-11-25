@@ -474,6 +474,7 @@ function renderExerciseBlockHtml(exerciseId) {
 
   const canRemove = completedSets.length === 0;
   const note = getRoutineItemNote(exerciseId);
+  const plateau = isCardio ? null : getPlateauInfo(getE1RMPoints(exerciseId));
   const headerCols = isCardio
     ? "<span>#</span><span>Prec.</span><span>Min</span><span>Km</span><span></span><span></span>"
     : "<span>#</span><span>Prec.</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span>";
@@ -484,6 +485,7 @@ function renderExerciseBlockHtml(exerciseId) {
         <button type="button" class="icon-btn exercise-remove-btn" data-exercise-id="${exerciseId}" ${canRemove ? "" : "disabled"} title="${canRemove ? "Rimuovi esercizio" : "Non rimovibile: ha serie registrate"}" aria-label="Rimuovi esercizio">${ICON_TRASH}</button>
       </div>
       ${note ? `<p class="exercise-block-note">${escapeHtml(note)}</p>` : ""}
+      ${plateau ? `<p class="plateau-note">Fermo da ${plateau.weeks} settimane — prova ad aumentare peso o reps</p>` : ""}
       <div class="set-row set-row-header">
         ${headerCols}
       </div>
@@ -1411,11 +1413,7 @@ function computeMuscleVolume(workouts) {
     .sort((a, b) => b.volume - a.volume);
 }
 
-function renderProgressionForExercise(exerciseId) {
-  if (!exerciseId) {
-    renderProgressionChart([]);
-    return;
-  }
+function getE1RMPoints(exerciseId) {
   const workouts = Store.getWorkouts();
   const sets = Store.getSets().filter((s) => s.exerciseId === exerciseId);
 
@@ -1430,14 +1428,31 @@ function renderProgressionForExercise(exerciseId) {
 
   const sortedDates = [...byWorkoutDate.keys()].sort();
   let best = -Infinity;
-  const points = sortedDates.map((date) => {
+  return sortedDates.map((date) => {
     const value = byWorkoutDate.get(date);
     const pr = value > best;
     if (pr) best = value;
     return { date, value, pr };
   });
+}
 
-  renderProgressionChart(points);
+const PLATEAU_WEEKS = 3; // ponytail: fixed threshold, no per-user setting yet
+
+function getPlateauInfo(points) {
+  const lastPRIndex = points.map((p) => p.pr).lastIndexOf(true);
+  if (lastPRIndex === -1 || points.length - 1 - lastPRIndex < 2) return null;
+  const lastPRDate = new Date(points[lastPRIndex].date + "T12:00:00");
+  const weeks = Math.floor((Date.now() - lastPRDate) / (7 * 86400000));
+  return weeks >= PLATEAU_WEEKS ? { weeks } : null;
+}
+
+function renderProgressionForExercise(exerciseId) {
+  if (!exerciseId) {
+    renderProgressionChart([]);
+    return;
+  }
+  const points = getE1RMPoints(exerciseId);
+  renderProgressionChart(points, getPlateauInfo(points)?.weeks);
 }
 
 function renderStatsView() {

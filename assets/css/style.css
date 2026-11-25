@@ -798,6 +798,12 @@ button:disabled {
   font-style: italic;
 }
 
+.plateau-note {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #ca8a04;
+}
+
 .set-row {
   display: grid;
   grid-template-columns: 18px 34px 1fr 1fr 1fr 32px;

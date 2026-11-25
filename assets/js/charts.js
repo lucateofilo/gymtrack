@@ -49,7 +49,7 @@ function renderMuscleVolume(rows) {
   }
 }
 
-function renderProgressionChart(points) {
+function renderProgressionChart(points, plateauWeeks) {
   const svg = document.getElementById("progressionSvg");
   const emptyState = document.getElementById("progressionEmpty");
   const recordLabel = document.getElementById("progressionRecord");
@@ -84,7 +84,7 @@ function renderProgressionChart(points) {
   svg.innerHTML = `<polyline points="${linePoints}" class="progression-line"></polyline>${dots}`;
 
   const bestEver = Math.max(...points.map((p) => p.value));
-  recordLabel.textContent = `Record: ${formatKg(bestEver)} (1RM stimato)`;
+  recordLabel.textContent = `Record: ${formatKg(bestEver)} (1RM stimato)` + (plateauWeeks ? ` · fermo da ${plateauWeeks} settimane` : "");
 }
 
 function renderBodyWeightChart(points, goal) {

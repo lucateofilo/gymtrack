@@ -3,6 +3,13 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-11-25 — Feature (rilevamento plateau)
+
+### Aggiunto
+- Avviso "Fermo da N settimane" quando il 1RM stimato di un esercizio non migliora da almeno 3 settimane (e sono passate almeno 2 sessioni da allora, per evitare falsi positivi su esercizi appena ripresi). Calcolato interamente sui dati locali già esistenti, nessuna chiamata esterna.
+- Visibile nel blocco esercizio durante l'allenamento (il momento in cui è più utile) e nel riquadro "Record" di Statistiche → Progressione.
+- Bump `CACHE_NAME` a `gymtrack-v14`.
+
 ## 2026-11-25 — Modificato (riorganizzazione layout scheda/allenamento)
 
 ### Modificato
