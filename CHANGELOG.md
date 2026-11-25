@@ -3,6 +3,14 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-11-25 — Modificato (riorganizzazione layout scheda/allenamento)
+
+### Modificato
+- **Modale Allenamento**: il form "aggiungi esercizio" è spostato sopra la lista esercizi (prima era in fondo, costringeva a scrollare oltre i blocchi già loggati per aggiungerne uno nuovo). Feeling-picker e timer di riposo sono raggruppati in un'unica riga a 2 colonne (1 colonna sotto i 380px) per occupare meno spazio verticale.
+- **Modale Scheda**: Sets/Reps/RIR/Riposo riuniti in una griglia 2×2 compatta; Nota e checkbox superset spostati in una riga secondaria, visivamente meno prominente, per segnalare che sono opzionali. Gli esercizi già aggiunti alla scheda sono ora card (sfondo, radius) invece di righe piatte, in coerenza visiva con i blocchi esercizio durante l'allenamento.
+- Stati visivi: aggiunto `:focus-visible` su input/select/bottoni, le serie completate hanno un tint di sfondo oltre al border trasparente, l'etichetta superset è ora una pillola con sfondo, i bottoni disabled sono più leggibili (opacity 0.3 → 0.45 + cursore not-allowed).
+- Bump `CACHE_NAME` a `gymtrack-v13`.
+
 ## 2026-11-25 — Fix (sicurezza e robustezza storage/foto)
 
 ### Fix

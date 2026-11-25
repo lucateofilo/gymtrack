@@ -223,27 +223,26 @@
         <input type="text" id="workoutNote" maxlength="60" placeholder="Es. Push day">
       </label>
 
-      <div class="feeling-picker">
-        <span class="feeling-picker-label">Come è andata?</span>
-        <div class="feeling-picker-btns">
-          <button type="button" class="feeling-btn" data-feeling="easy">Facile</button>
-          <button type="button" class="feeling-btn" data-feeling="medium">Media</button>
-          <button type="button" class="feeling-btn" data-feeling="hard">Dura</button>
+      <div class="session-bar">
+        <div class="feeling-picker">
+          <span class="feeling-picker-label">Come è andata?</span>
+          <div class="feeling-picker-btns">
+            <button type="button" class="feeling-btn" data-feeling="easy">Facile</button>
+            <button type="button" class="feeling-btn" data-feeling="medium">Media</button>
+            <button type="button" class="feeling-btn" data-feeling="hard">Dura</button>
+          </div>
         </div>
-      </div>
 
-      <div class="rest-timer">
-        <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
-        <div class="rest-timer-actions">
-          <button type="button" class="btn secondary" id="restTimerReset">Azzera</button>
-          <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
+        <div class="rest-timer">
+          <div class="rest-timer-display" id="restTimerDisplay">1:30</div>
+          <div class="rest-timer-actions">
+            <button type="button" class="btn secondary" id="restTimerReset">Azzera</button>
+            <button type="button" class="btn primary" id="restTimerToggle">Avvia</button>
+          </div>
+          <button type="button" id="plateCalcBtn" class="plate-calc-link">Calcolatore dischi</button>
         </div>
-        <button type="button" id="plateCalcBtn" class="plate-calc-link">Calcolatore dischi</button>
       </div>
       <p id="setStopwatch" class="period-average" hidden></p>
-
-      <div id="exerciseBlocks"></div>
-      <p id="exerciseBlocksEmpty" class="empty-state" hidden>Nessun esercizio in questo allenamento.<br>Aggiungine uno qui sotto.</p>
 
       <div class="add-set-form">
         <label>
@@ -264,6 +263,9 @@
         </div>
         <button type="button" id="addExerciseToWorkoutBtn" class="btn secondary">+ Aggiungi esercizio</button>
       </div>
+
+      <div id="exerciseBlocks"></div>
+      <p id="exerciseBlocksEmpty" class="empty-state" hidden>Nessun esercizio in questo allenamento.<br>Aggiungine uno qui sopra.</p>
 
       <div class="modal-actions">
         <button type="button" id="deleteWorkoutBtn" class="btn danger" hidden>Elimina allenamento</button>
@@ -355,7 +357,7 @@
             <select id="newRoutineExerciseGroup"></select>
           </label>
         </div>
-        <div class="field-row">
+        <div class="field-row field-row-4">
           <label>
             Serie
             <input type="number" id="routineExerciseSets" min="1" step="1" value="3">
@@ -368,19 +370,21 @@
             RIR
             <input type="number" id="routineExerciseRir" min="0" max="10" step="1" placeholder="-">
           </label>
+          <label>
+            Riposo (s)
+            <input type="number" id="routineExerciseRest" min="0" step="15" value="90">
+          </label>
         </div>
-        <label>
-          Recupero tra le serie (s)
-          <input type="number" id="routineExerciseRest" min="0" step="15" value="90">
-        </label>
-        <label>
-          Nota (opzionale)
-          <input type="text" id="routineExerciseNote" maxlength="60" placeholder="Es. gomiti stretti">
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="routineExerciseSuperset">
-          Abbina in superset con l'esercizio precedente
-        </label>
+        <div class="field-row-secondary">
+          <label>
+            Nota (opzionale)
+            <input type="text" id="routineExerciseNote" maxlength="60" placeholder="Es. gomiti stretti">
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="routineExerciseSuperset">
+            Abbina in superset con l'esercizio precedente
+          </label>
+        </div>
         <button type="button" id="addRoutineExerciseBtn" class="btn secondary">+ Aggiungi esercizio</button>
       </div>
 

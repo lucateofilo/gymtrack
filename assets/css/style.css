@@ -461,6 +461,18 @@ main {
   border-bottom: none;
 }
 
+#routineExercisesList li {
+  background: var(--surface-2);
+  border-radius: 10px;
+  border-bottom: none;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+#routineExercisesList li:last-child {
+  margin-bottom: 0;
+}
+
 .category-manager .cat-name {
   display: flex;
   align-items: center;
@@ -503,7 +515,8 @@ main {
 }
 
 button:disabled {
-  opacity: 0.3;
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .ex-delete,
@@ -590,6 +603,34 @@ button:disabled {
 
 .streak-cell.empty {
   visibility: hidden;
+}
+
+.session-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 380px) {
+  .session-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.session-bar .feeling-picker,
+.session-bar .rest-timer {
+  margin-bottom: 0;
+}
+
+.session-bar .feeling-picker-btns {
+  gap: 6px;
+}
+
+.session-bar .feeling-btn {
+  padding: 6px 2px;
+  font-size: 12px;
 }
 
 .feeling-picker {
@@ -805,8 +846,14 @@ button:disabled {
   text-align: center;
 }
 
+.set-row.completed {
+  background: rgba(234, 88, 12, 0.08);
+  border-radius: 8px;
+}
+
 .set-row.completed .set-input {
   border-color: transparent;
+  background: transparent;
   color: var(--text-secondary);
 }
 
@@ -1011,6 +1058,15 @@ button:disabled {
   min-width: 100%;
 }
 
+.modal-form input:focus-visible,
+.modal-form select:focus-visible,
+.set-input:focus-visible,
+.btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .field-row {
   display: flex;
   gap: 10px;
@@ -1018,6 +1074,20 @@ button:disabled {
 
 .field-row label {
   flex: 1;
+}
+
+.field-row-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field-row-secondary {
+  margin-top: -2px;
+}
+
+.field-row-secondary label {
+  font-size: 12px;
 }
 
 .new-category-fields {
@@ -1060,13 +1130,16 @@ button:disabled {
 }
 
 .superset-label {
-  display: block;
+  display: inline-block;
   font-size: 11px;
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  background: rgba(234, 88, 12, 0.12);
+  padding: 2px 8px;
+  border-radius: 20px;
 }
 
 .photo-field {
