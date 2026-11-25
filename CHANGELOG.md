@@ -3,6 +3,20 @@
 Tutte le modifiche significative al progetto sono documentate in questo file.
 Formato: `## YYYY-MM-DD — Tipo` seguito da sezioni Aggiunto / Modificato / Fix.
 
+## 2026-11-25 — Fix (sicurezza e robustezza storage/foto)
+
+### Fix
+- **XSS**: nomi esercizio/scheda, note e righe di anteprima import CSV ora passano per `escapeHtml()` prima di finire in `innerHTML` (prima un nome esercizio malevolo in un CSV poteva eseguire script).
+- **CSV injection**: `csvEscape()` prefissa con `'` i valori che iniziano per `= + - @`, per non farli interpretare come formula da Excel/Fogli all'apertura dei CSV esportati.
+- **Quota storage**: `saveData()` intercetta `QuotaExceededError` e avvisa l'utente invece di fallire silenziosamente.
+- **Memory leak**: `hideBodyLogPhotoPreview()` revoca il blob URL della foto in anteprima.
+- Aggiunta Content-Security-Policy in `index.html`.
+
+### Aggiunto
+- Le foto caricate in "Corpo" vengono ridimensionate/compresse (max 1600px, JPEG 0.82) prima del salvataggio in IndexedDB, per non saturare la quota del browser.
+- Il backup JSON (`Esporta backup`) ora include anche le foto (base64) e `Ripristina backup` le riscrive in IndexedDB — prima venivano escluse e si perdevano cambiando dispositivo.
+- Bump `CACHE_NAME` a `gymtrack-v12`.
+
 ## 2026-07-21 — Feature (import da CSV/Excel con preview pre-conferma)
 
 ### Aggiunto

@@ -32,7 +32,12 @@ function loadData() {
 }
 
 function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    alert("Spazio di archiviazione del browser esaurito: impossibile salvare. Esporta un backup e libera spazio.");
+    throw err;
+  }
 }
 
 function genId() {

@@ -286,8 +286,8 @@ function renderWorkoutsList(workouts) {
     li.className = "movement-item";
     li.innerHTML = `
       <div class="info">
-        <div class="cat-name">${title}</div>
-        <div class="note">${sets.length} serie · ${formatKg(volume)}${w.feeling ? " · " + FEELING_LABELS[w.feeling] : ""}${w.note ? " · " + w.note : ""}</div>
+        <div class="cat-name">${escapeHtml(title)}</div>
+        <div class="note">${sets.length} serie · ${formatKg(volume)}${w.feeling ? " · " + FEELING_LABELS[w.feeling] : ""}${w.note ? " · " + escapeHtml(w.note) : ""}</div>
       </div>
       <div class="meta">
         <span class="date">${dateLabel}</span>
@@ -331,7 +331,7 @@ function renderRoutinesSection() {
       li.className = "routine-card";
       li.innerHTML = `
         <div class="routine-info">
-          <span class="routine-name">${routine.name}</span>
+          <span class="routine-name">${escapeHtml(routine.name)}</span>
           <span class="routine-meta">${routine.items.length} esercizi</span>
         </div>
         <div class="routine-actions">
@@ -480,10 +480,10 @@ function renderExerciseBlockHtml(exerciseId) {
   return `
     <div class="exercise-block" data-exercise-id="${exerciseId}">
       <div class="exercise-block-header">
-        <h3>${exercise ? exercise.name : "Esercizio eliminato"}</h3>
+        <h3>${exercise ? escapeHtml(exercise.name) : "Esercizio eliminato"}</h3>
         <button type="button" class="icon-btn exercise-remove-btn" data-exercise-id="${exerciseId}" ${canRemove ? "" : "disabled"} title="${canRemove ? "Rimuovi esercizio" : "Non rimovibile: ha serie registrate"}" aria-label="Rimuovi esercizio">${ICON_TRASH}</button>
       </div>
-      ${note ? `<p class="exercise-block-note">${note}</p>` : ""}
+      ${note ? `<p class="exercise-block-note">${escapeHtml(note)}</p>` : ""}
       <div class="set-row set-row-header">
         ${headerCols}
       </div>
@@ -970,8 +970,10 @@ function showBodyLogPhotoPreview(url) {
 }
 
 function hideBodyLogPhotoPreview() {
+  const img = document.getElementById("bodyLogPhotoPreviewImg");
+  if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
   document.getElementById("bodyLogPhotoPreview").hidden = true;
-  document.getElementById("bodyLogPhotoPreviewImg").src = "";
+  img.src = "";
 }
 
 function openBodyLogModal(mode, log) {
@@ -1035,7 +1037,8 @@ async function handleSaveBodyLog() {
 
   if (pendingBodyLogPhotoFile) {
     try {
-      await Photos.save(log.id, pendingBodyLogPhotoFile);
+      const compressed = await compressImage(pendingBodyLogPhotoFile);
+      await Photos.save(log.id, compressed);
     } catch {
       Store.updateBodyLog(log.id, { hasPhoto: false });
       alert("Voce salvata, ma il salvataggio della foto è fallito.");
@@ -1074,7 +1077,7 @@ function renderExerciseManager() {
     const li = document.createElement("li");
     li.innerHTML = `
       <span class="cat-name">
-        ${ex.name}
+        ${escapeHtml(ex.name)}
         <span class="budget-badge">${ex.muscleGroup}</span>
         ${ex.unit === "bodyweight" ? '<span class="budget-badge">corpo libero</span>' : ""}
         <span class="budget-badge">riposo ${formatTimer(getExerciseRest(ex.id))}</span>
@@ -1147,7 +1150,7 @@ function renderRoutineGroupManager() {
     for (const routine of bucket.routines) {
       const li = document.createElement("li");
       li.innerHTML = `
-        <span class="cat-name">${routine.name} <span class="budget-badge">${routine.items.length} esercizi</span></span>
+        <span class="cat-name">${escapeHtml(routine.name)} <span class="budget-badge">${routine.items.length} esercizi</span></span>
         <div class="cat-manager-actions">
           <button type="button" class="routine-edit" data-routine-id="${routine.id}" aria-label="Modifica scheda">${ICON_EDIT}</button>
           <button type="button" class="routine-delete" data-routine-id="${routine.id}" aria-label="Elimina scheda">${ICON_TRASH}</button>
@@ -1229,11 +1232,11 @@ function renderRoutineExercisesList() {
     const exercise = Store.getExerciseById(item.exerciseId);
     const li = document.createElement("li");
     li.innerHTML = `
-      <span class="cat-name">${exercise ? exercise.name : "Esercizio eliminato"}
+      <span class="cat-name">${exercise ? escapeHtml(exercise.name) : "Esercizio eliminato"}
         <span class="budget-badge">${item.sets}×${item.reps}${item.rir != null ? " · RIR " + item.rir : ""}</span>
         <span class="budget-badge">riposo ${formatTimer(getExerciseRest(item.exerciseId))}</span>
         ${item.supersetId ? '<span class="budget-badge">superset</span>' : ""}
-        ${item.note ? `<span class="budget-badge">${item.note}</span>` : ""}
+        ${item.note ? `<span class="budget-badge">${escapeHtml(item.note)}</span>` : ""}
       </span>
       <div class="cat-manager-actions">
         <button type="button" class="rex-move" data-index="${idx}" data-direction="-1" ${idx === 0 ? "disabled" : ""} aria-label="Sposta su">&#8593;</button>
@@ -1455,8 +1458,15 @@ function renderStatsView() {
   renderStreakCalendar(today.getFullYear(), today.getMonth(), workoutDates);
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
 function csvEscape(value) {
-  const str = String(value);
+  let str = String(value);
+  if (/^[=+\-@]/.test(str)) str = "'" + str; // blocks formula injection when opened in Excel/Sheets
   if (/[",\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -1472,6 +1482,37 @@ function downloadBlob(blob, filename) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ponytail: fixed 1600px/0.82 ceiling, no per-user setting — revisit if quota complaints show up
+async function compressImage(file, maxDim = 1600, quality = 0.82) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", quality));
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataURLToBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/data:(.*?);/)[1];
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 function exportSetsCSV() {
@@ -1555,8 +1596,15 @@ function renderBackupReminder() {
   el.hidden = false;
 }
 
-function exportBackup() {
-  const json = JSON.stringify(Store.exportAll(), null, 2);
+async function exportBackup() {
+  const data = Store.exportAll();
+  const photos = {};
+  for (const log of data.bodyLogs) {
+    if (!log.hasPhoto) continue;
+    const blob = await Photos.get(log.id);
+    if (blob) photos[log.id] = await blobToDataURL(blob);
+  }
+  const json = JSON.stringify({ ...data, photos }, null, 2);
   downloadBlob(new Blob([json], { type: "application/json" }), `gymtrack-backup-${toISODate(new Date())}.json`);
   markBackupDone();
   renderBackupReminder();
@@ -1564,7 +1612,7 @@ function exportBackup() {
 
 function importBackup(file) {
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     let data;
     try {
       data = JSON.parse(reader.result);
@@ -1576,6 +1624,13 @@ function importBackup(file) {
     if (!Store.importAll(data)) {
       alert("File di backup non valido.");
       return;
+    }
+    if (data.photos && typeof data.photos === "object") {
+      for (const [id, dataUrl] of Object.entries(data.photos)) {
+        try {
+          await Photos.save(id, dataURLToBlob(dataUrl));
+        } catch {}
+      }
     }
     renderAll();
     alert("Backup ripristinato.");
@@ -1706,13 +1761,13 @@ function renderImportPreview(parsed) {
     ${skipped ? `<span class="import-chip-warn">${skipped} rig${skipped === 1 ? "a ignorata" : "he ignorate"}</span>` : ""}
   </div>`;
   if (conflicts.length) html += `<p class="import-warn-text">Hai già allenamenti in queste date — verranno aggiunte nuove sessioni: ${conflicts.join(", ")}.</p>`;
-  if (newNames.length) html += `<p class="import-info-text">Nuovi esercizi che verranno creati: ${newNames.join(", ")}.</p>`;
+  if (newNames.length) html += `<p class="import-info-text">Nuovi esercizi che verranno creati: ${newNames.map(escapeHtml).join(", ")}.</p>`;
   summaryEl.innerHTML = html;
 
   const display = rows.slice(0, 50);
   let tHtml = `<table class="import-table"><thead><tr><th>Data</th><th>Esercizio</th><th>Gruppo</th><th>Peso</th><th>Reps</th><th>RIR</th></tr></thead><tbody>`;
   for (const r of display) {
-    tHtml += `<tr${r.isNew ? ' class="import-row-new"' : ""}><td>${r.date}</td><td>${r.exName}${r.isNew ? ' <span class="import-new-badge">nuovo</span>' : ""}</td><td>${r.group}</td><td>${r.weight || ""}</td><td>${r.reps || ""}</td><td>${r.rir ?? ""}</td></tr>`;
+    tHtml += `<tr${r.isNew ? ' class="import-row-new"' : ""}><td>${r.date}</td><td>${escapeHtml(r.exName)}${r.isNew ? ' <span class="import-new-badge">nuovo</span>' : ""}</td><td>${escapeHtml(r.group)}</td><td>${r.weight || ""}</td><td>${r.reps || ""}</td><td>${r.rir ?? ""}</td></tr>`;
   }
   tHtml += `</tbody></table>`;
   if (rows.length > 50) tHtml += `<p class="import-more">... e altre ${rows.length - 50} righe</p>`;

@@ -5,6 +5,7 @@
 <title>GymTrack</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 <link rel="stylesheet" href="assets/css/style.css">
@@ -148,7 +149,7 @@
 
       <div class="chart-card">
         <h2>Backup dati</h2>
-        <p class="export-hint">Salva o ripristina esercizi, allenamenti, serie, schede e voci "Corpo" in un file. Le foto (progresso corpo) non sono incluse nel backup.</p>
+        <p class="export-hint">Salva o ripristina esercizi, allenamenti, serie, schede, voci "Corpo" e le relative foto in un file.</p>
         <div class="backup-actions">
           <button type="button" id="exportBackupBtn" class="btn primary">Esporta backup</button>
           <label for="importBackupInput" class="btn secondary">Ripristina backup</label>
